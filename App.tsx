@@ -3,8 +3,26 @@ import { Alert, StyleSheet, View, Text, TouchableOpacity, ScrollView, Animated, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
+
+const isExpoGo = Constants.appOwnership === 'expo';
+
+// Dynamic require to prevent expo-notifications evaluation inside Expo Go (which crashes on SDK 53+)
+const Notifications: any = isExpoGo
+  ? {
+      setNotificationHandler: () => {},
+      setNotificationChannelAsync: async () => ({}),
+      getPermissionsAsync: async () => ({ status: 'granted' }),
+      requestPermissionsAsync: async () => ({ status: 'granted' }),
+      getExpoPushTokenAsync: async () => ({ data: 'mock-token' }),
+      addNotificationReceivedListener: () => ({ remove: () => {} }),
+      addNotificationResponseReceivedListener: () => ({ remove: () => {} }),
+      cancelScheduledNotificationAsync: async () => {},
+      scheduleNotificationAsync: async () => 'mock-id',
+      AndroidImportance: { MAX: 4 },
+      SchedulableTriggerInputTypes: { DATE: 'date' },
+    }
+  : require('expo-notifications');
 import HomeScreen from './src/screens/HomeScreen';
 import ListManagementScreen from './src/screens/ListManagementScreen';
 import AuthScreen from './src/screens/AuthScreen';
@@ -131,7 +149,7 @@ export default function App() {
     initNotifications();
 
     // Foreground listener
-    const notificationListener = Notifications.addNotificationReceivedListener(notification => {
+    const notificationListener = Notifications.addNotificationReceivedListener((notification: any) => {
       console.log('Foreground notification received:', notification);
       const { title, body, data } = notification.request.content;
       
@@ -142,7 +160,7 @@ export default function App() {
     });
 
     // Interaction/response click listener
-    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+    const responseListener = Notifications.addNotificationResponseReceivedListener((response: any) => {
       console.log('Notification response received:', response);
     });
 
