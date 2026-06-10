@@ -7,6 +7,7 @@ import {
   View,
   Platform,
   Modal,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -97,6 +98,26 @@ const ActiveQueueScreen: React.FC<ActiveQueueScreenProps> = ({
   const handleAdvance = async () => {
     await onAdvanceQueue();
     setViewingRoundOffset(0);
+  };
+
+  const handleShareWhatsApp = async () => {
+    try {
+      let message = `🔄 *תור הוגן: ${activeList.name}* 🔄\n`;
+      message += `*סבב: ${previewRoundIndex + 1}*\n\n`;
+      message += `*סדר המשתתפים בסבב זה:*\n`;
+
+      currentSlice.forEach((id, index) => {
+        const p = participantsMap.get(id);
+        const displayName = p ? `${p.firstName}${p.lastName ? ' ' + p.lastName : ''}` : 'משתתף לא ידוע';
+        const nickname = p?.nickname ? ` (${p.nickname})` : '';
+        message += `${index + 1}. ${displayName}${nickname}\n`;
+      });
+
+      message += `\nנוצר באמצעות אפליקציית Sortli - בחירה הוגנת בסיבובים 🔄`;
+      await Share.share({ message });
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const renderStatusBanner = () => {
@@ -234,6 +255,16 @@ const ActiveQueueScreen: React.FC<ActiveQueueScreenProps> = ({
             );
           })}
         </ScrollView>
+
+        {/* WhatsApp Share Button */}
+        <TouchableOpacity
+          style={styles.shareWhatsAppButton}
+          onPress={handleShareWhatsApp}
+          activeOpacity={0.8}
+        >
+          <NavigationIcon name="logo-whatsapp" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
+          <Text style={styles.shareWhatsAppButtonText}>שיתוף תור פעיל לוואטסאפ 📝</Text>
+        </TouchableOpacity>
 
         {/* Main Action Button */}
         <View style={styles.footer}>
@@ -443,6 +474,25 @@ const styles = StyleSheet.create({
   footer: {
     paddingVertical: 12,
     backgroundColor: '#FAF9FF',
+  },
+  shareWhatsAppButton: {
+    height: 48,
+    backgroundColor: '#25D366', // WhatsApp Green
+    borderRadius: 16,
+    flexDirection: 'row-reverse',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#25D366',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  shareWhatsAppButtonText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   advanceButton: {
     height: 52,
