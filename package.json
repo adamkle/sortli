@@ -1,15 +1,23 @@
 {
-  "name": "fairturnapp",
+  "name": "sortli",
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "buffer": "^6.0.3",
     "expo": "~56.0.6",
+    "expo-notifications": "~0.31.5",
     "expo-status-bar": "~56.0.4",
+    "firebase": "^12.13.0",
     "react": "19.2.3",
-    "react-native": "0.85.3"
+    "react-native": "0.85.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "eas-cli": "^9.0.0",
     "typescript": "~6.0.3"
   },
   "scripts": {

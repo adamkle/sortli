@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User Profiles Rules
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    
+    // Standalone Lists Rules (FairTurn 2.0)
+    match /lists/{listId} {
+      // 1. Allow creation if the user is authenticated and sets themselves as an allowed user
+      allow create: if request.auth != null && request.auth.uid in request.resource.data.allowedUsers;
+      
+      // 2. Allow read and delete only if the user's UID is already in the persisted allowedUsers array
+      allow read, delete: if request.auth != null && request.auth.uid in resource.data.allowedUsers;
+      
+      // 3. Allow update if the user is authenticated and in the persisted allowedUsers array, or setting themselves in the incoming allowedUsers array
+      allow update: if request.auth != null && (request.auth.uid in resource.data.allowedUsers || request.auth.uid in request.resource.data.allowedUsers);
+    }
+
+    // Institutions Rules (Required for school/institution registration flow)
+    match /institutions/{code} {
+      allow read: if request.auth != null;
+      allow update: if request.auth != null 
+        && request.resource.data.currentUserCount == resource.data.currentUserCount + 1
+        && request.resource.data.subscriptionStatus == resource.data.subscriptionStatus;
+    }
+
+    // Email Verifications Rules (Secure server-only collection)
+    match /emailVerifications/{email} {
+      allow read, write: if false;
+    }
+  }
+}

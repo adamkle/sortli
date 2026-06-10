@@ -1,25 +1,40 @@
 {
   "expo": {
-    "name": "FairTurnApp",
-    "slug": "FairTurnApp",
+    "name": "sortli",
+    "slug": "sortli",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/sortliIcon.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1E1B4B"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sortli.app"
     },
     "android": {
+      "icon": "./assets/sortliIcon.png",
+      "predictiveBackGestureEnabled": false,
+      "package": "com.sortli.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
+        "monochromeImage": "./assets/android-icon-monochrome.png",
+        "backgroundColor": "#1E1B4B"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ea82d7c0-2f9a-4e2b-8a7e-1b2c3d4e5f6a"
+      }
+    },
+    "owner": "adamkle"
   }
 }
