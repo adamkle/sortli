@@ -61,7 +61,7 @@ const NavigationIcon: React.FC<NavigationIconProps> = ({ name, size = 24, color 
       path = 'M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z';
       break;
     case 'help-circle-outline':
-      path = 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z';
+      path = 'M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z';
       break;
     case 'people-outline':
     case 'people-sharp':
@@ -107,6 +107,12 @@ const NavigationIcon: React.FC<NavigationIconProps> = ({ name, size = 24, color 
       break;
     case 'swap-horizontal':
       path = 'M16.01 11H4v2h12.01v3L20 12l-3.99-4v3zm-.02-7L12 8v3h8V8h-3.99V4z M8 16h12v-2H8v-3L4 15l4 4v-3z';
+      break;
+    case 'slot-machine':
+      path = 'M5 12L7 8V7H4V8H6L4 12M9 12L11 8V7H8V8H10L8 12M13 12L15 8V7H12V8H14L12 12M21 2C19.9 2 19 2.9 19 4C19 4.7 19.4 5.4 20 5.7V17H17V15C17.6 15 18 14.6 18 14V5C18 4.4 17.6 4 17 4H13.2C12.4 2.8 11 2 9.5 2S6.6 2.8 5.8 4H2C1.4 4 1 4.4 1 5V14C1 14.6 1.4 15 2 15V22H17V19H20C21.1 19 22 18.1 22 17V5.7C22.6 5.4 23 4.7 23 4C23 2.9 22.1 2 21 2M13 19H6V17H13V19M16 13H3V6H16V13Z';
+      break;
+    case 'slot-machine-outline':
+      path = 'M5 12L7 8V7H4V8H6L4 12M9 12L11 8V7H8V8H10L8 12M13 12L15 8V7H12V8H14L12 12M21 2C19.9 2 19 2.9 19 4C19 4.7 19.4 5.4 20 5.7V17H17V15C17.6 15 18 14.6 18 14V5C18 4.4 17.6 4 17 4H13.2C12.4 2.8 11 2 9.5 2S6.6 2.8 5.8 4H2C1.4 4 1 4.4 1 5V14C1 14.6 1.4 15 2 15V22H17V19H20C21.1 19 22 18.1 22 17V5.7C22.6 5.4 23 4.7 23 4C23 2.9 22.1 2 21 2M3 6H16V13H3V6M15 20H4V15H15V20M13 19H6V17H13V19Z';
       break;
     case 'gift':
       path = 'M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35-.54-.81-1.45-1.35-2.5-1.35-1.66 0-3 1.34-3 3 0 .35.07.69.18 1H5c-1.1 0-2 .9-2 2v3c0 .55.45 1 1 1h1v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V12h1c.55 0 1-.45 1-1V8c0-1.1-.9-2-2-2zM5 8h6v3H5V8zm2 5h4v8H7v-8zm10 8h-4v-8h4v8zm2-10h-6V8h6v3z';
@@ -186,6 +192,86 @@ const NavigationIcon: React.FC<NavigationIconProps> = ({ name, size = 24, color 
         <Circle cx="12" cy="12" r="1.5" fill={color} />
         <Circle cx="8" cy="16" r="1.5" fill={color} />
         <Circle cx="16" cy="16" r="1.5" fill={color} />
+      </Svg>
+    );
+  }
+
+  if (name === 'sync' || name === 'sync-outline') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 512 512" style={style}>
+        <Path
+          d="M434.67 285.59v-29.8C434.67 157.06 354.43 77 255.47 77a179 179 0 00-140.14 67.36m-38.53 82v29.8C76.8 355 157 435 256 435a180.45 180.45 0 00140-66.92"
+          fill="none"
+          stroke={color}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="32"
+        />
+        <Path
+          d="M32 256l44-44 46 44"
+          fill="none"
+          stroke={color}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="32"
+        />
+        <Path
+          d="M480 256l-44 44-46-44"
+          fill="none"
+          stroke={color}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="32"
+        />
+      </Svg>
+    );
+  }
+
+  if (name === 'wizard-hat' || name === 'hat-wizard') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 512 512" style={style}>
+        {/* שולי הכובע */}
+        <Rect x="64" y="384" width="384" height="32" rx="16" fill={color} />
+        {/* גוף הכובע */}
+        <Path
+          d="M128 384 L144 128 C144 110 160 96 178 96 L334 96 C352 96 368 110 368 128 L384 384 Z"
+          fill={color}
+        />
+        {/* סרט אדום לקישוט */}
+        <Path
+          d="M125 336 L128 384 L384 384 L387 336 Z"
+          fill="#EF4444"
+        />
+        {/* כוכב זהב מרחף */}
+        <Path
+          d="M256 32 L262 48 L278 50 L266 62 L270 78 L256 70 L242 78 L246 62 L234 50 L250 48 Z"
+          fill="#FBBF24"
+        />
+      </Svg>
+    );
+  }
+
+  if (name === 'magic-wand' || name === 'magic') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 512 512" style={style}>
+        {/* מקל הקסמים (אלכסוני) */}
+        <Path
+          d="M100 412 L412 100"
+          stroke={color}
+          strokeWidth="32"
+          strokeLinecap="round"
+          fill="none"
+        />
+        {/* ניצוץ זהוב ראשי */}
+        <Path
+          d="M420 40 L424 56 L440 58 L428 70 L432 86 L418 78 L404 86 L408 70 L396 58 L412 56 Z"
+          fill="#FBBF24"
+        />
+        {/* ניצוץ זהוב משני */}
+        <Path
+          d="M340 60 L343 70 L353 71 L345 79 L347 89 L339 84 L331 89 L333 79 L325 71 L335 70 Z"
+          fill="#FBBF24"
+        />
       </Svg>
     );
   }

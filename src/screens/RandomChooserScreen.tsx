@@ -211,23 +211,14 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
       
       {/* Header */}
       <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <NavigationIcon name="arrow-forward" size={26} color="#1E1B4B" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setIsHelpModalOpen(true)} style={{ padding: 8 }}>
-            <NavigationIcon name="help-circle-outline" size={26} color="#6366F1" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <NavigationIcon name="arrow-forward" size={26} color="#1E1B4B" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
           הגרלת תורן: {activeList.name}
         </Text>
-        <TouchableOpacity 
-          onPress={handleReset} 
-          style={[styles.resetButtonHeader, (chosenIds.length === 0 && !lastChosenId) && styles.disabledOpacity]}
-          disabled={chosenIds.length === 0 && !lastChosenId}
-        >
-          <NavigationIcon name="refresh-outline" size={24} color="#EF4444" />
+        <TouchableOpacity onPress={() => setIsHelpModalOpen(true)} style={styles.backButton}>
+          <NavigationIcon name="help-circle-outline" size={26} color="#6366F1" />
         </TouchableOpacity>
       </View>
 
@@ -394,9 +385,22 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
             {/* Cycle Progress Tracker */}
             <View style={styles.progressContainer}>
               <View style={styles.progressTextRow}>
-                <Text style={styles.progressSub}>
-                  הושלם: {chosenParticipants.length} מתוך {presentN}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <TouchableOpacity
+                    onPress={handleReset}
+                    disabled={chosenIds.length === 0 && !lastChosenId}
+                    style={[
+                      styles.inlineResetButton,
+                      (chosenIds.length === 0 && !lastChosenId) && styles.disabledOpacity
+                    ]}
+                  >
+                    <NavigationIcon name="refresh-outline" size={12} color="#EF4444" />
+                    <Text style={styles.inlineResetText}>איפוס</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.progressSub}>
+                    הושלם: {chosenParticipants.length} מתוך {presentN}
+                  </Text>
+                </View>
                 <Text style={styles.progressTitle}>התקדמות סבב הבחירה</Text>
               </View>
               <View style={styles.progressBarBg}>
@@ -567,6 +571,22 @@ const styles = StyleSheet.create({
   },
   resetButtonHeader: {
     padding: 8,
+  },
+  inlineResetButton: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    gap: 4,
+  },
+  inlineResetText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#EF4444',
   },
   disabledOpacity: {
     opacity: 0.35,

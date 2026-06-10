@@ -87,9 +87,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     },
     {
       key: 'randomChooser',
-      title: 'הגרלת תורן',
-      subtitle: '(בחירה רנדומלית ללא חזרות)',
-      iconName: 'shuffle', // חצי קרוס של ערבוב/הגרלה רנדומלית
+      title: 'בחירה רנדומלית',
+      iconName: 'slot-machine-outline', // מכונת מזל להגרלת תורן
       backgroundColor: '#06B6D4', // Teal/Cyan
       lockedFor: [],
     },
@@ -97,7 +96,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       key: 'secretDraw',
       title: 'הגרלה סודית',
       subtitle: '(גמד וענק, משחק הרוצח)',
-      iconName: 'people-circle', // קבוצת אנשים להגרלה חברתית
+      iconName: 'eye-off-outline', // עין מוסתרת (גלישה בסתר/דיסקרטיות) להגרלה סודית
       backgroundColor: '#4F46E5', // Indigo
       lockedFor: [],
     },
@@ -113,7 +112,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       key: 'gifts',
       title: 'חלוקה וקבלה הדדית',
       subtitle: '(משלוחי מנות)',
-      iconName: 'swap-horizontal', // חצים אופקיים להחלפה הדדית
+      iconName: 'sync-outline', // חצים עגולים בסירקולציה להחלפה הדדית
       backgroundColor: '#3B82F6', // Blue
       lockedFor: ['guest'],
     },
@@ -216,7 +215,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                   <NavigationIcon name="log-out-outline" size={28} color="#EF4444" />
                 </TouchableOpacity>
               ) : (
-                <View style={{ width: 30 }} />
+                <TouchableOpacity onPress={onNavigateToAuth} style={styles.logoutButton}>
+                  <NavigationIcon name="log-in" size={28} color="#4F46E5" />
+                </TouchableOpacity>
               )}
             </View>
           </View>
