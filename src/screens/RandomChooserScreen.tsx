@@ -456,20 +456,7 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
                 )}
               </View>
             </View>
-
-            {/* WhatsApp Share Button */}
-            {(chosenIds.length > 0 || lastChosenId !== null) && (
-              <TouchableOpacity
-                style={styles.shareWhatsAppButton}
-                onPress={handleShareWhatsApp}
-                activeOpacity={0.8}
-              >
-                <NavigationIcon name="logo-whatsapp" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
-                <Text style={styles.shareWhatsAppButtonText}>שילוח קבוצה לוואטסאפ 📝</Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Bottom Excluded/Absentee Banner */}
+             {/* Bottom Excluded/Absentee Banner */}
             {absentParticipantIds.length > 0 && (
               <View style={styles.absentBanner}>
                 <Text style={styles.absentBannerText}>
