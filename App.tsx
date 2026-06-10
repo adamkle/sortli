@@ -1278,6 +1278,7 @@ export default function App() {
           activeList={activeList}
           onBack={() => setCurrentScreen('Home')}
           onAdvanceQueue={handleAdvanceQueue}
+          userTier={userTier}
         />
       );
     }

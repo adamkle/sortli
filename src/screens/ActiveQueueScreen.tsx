@@ -8,25 +8,30 @@ import {
   Platform,
   Modal,
   Share,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import NavigationIcon from '../components/NavigationIcon';
-import { SharedList } from '../types';
+import { SharedList, UserTier } from '../types';
 
 interface ActiveQueueScreenProps {
   activeList: SharedList | null;
   onBack: () => void;
   onAdvanceQueue: () => Promise<void>;
+  userTier: UserTier;
 }
 
 const ActiveQueueScreen: React.FC<ActiveQueueScreenProps> = ({
   activeList,
   onBack,
   onAdvanceQueue,
+  userTier,
 }) => {
   const [viewingRoundOffset, setViewingRoundOffset] = useState(0);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [showAdModal, setShowAdModal] = useState<boolean>(false);
+  const [adCountdown, setAdCountdown] = useState<number>(0);
 
   // Reset offset if activeList changes
   useEffect(() => {
@@ -100,9 +105,28 @@ const ActiveQueueScreen: React.FC<ActiveQueueScreenProps> = ({
     setViewingRoundOffset(0);
   };
 
-  const handleShareWhatsApp = async () => {
+  const handleShareWhatsApp = () => {
+    if (userTier === 'guest') {
+      Alert.alert('', 'כדי לשתף בוואטסאפ יש להתחבר למערכת!');
+      return;
+    }
+    setShowAdModal(true);
+    setAdCountdown(5);
+
+    const interval = setInterval(() => {
+      setAdCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const executeShare = async () => {
     try {
-      let message = `🔄 *תור הוגן: ${activeList.name}* 🔄\n`;
+      let message = `🔄 *תור הוגן: ${activeList?.name}* 🔄\n`;
       message += `*סבב: ${previewRoundIndex + 1}*\n\n`;
       message += `*סדר המשתתפים בסבב זה:*\n`;
 
@@ -145,6 +169,58 @@ const ActiveQueueScreen: React.FC<ActiveQueueScreenProps> = ({
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
+
+      {/* Fullscreen Test Ad Simulation Modal */}
+      <Modal
+        visible={showAdModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => {
+          if (adCountdown === 0) {
+            setShowAdModal(false);
+            executeShare();
+          }
+        }}
+      >
+        <SafeAreaView style={styles.adModalContainer}>
+          <StatusBar style="dark" />
+          <View style={styles.adModalHeader}>
+            {adCountdown > 0 ? (
+              <View style={styles.adTimerBadge}>
+                <Text style={styles.adTimerText}>המודעה תיסגר בעוד {adCountdown} שניות...</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.adCloseButton}
+                onPress={() => {
+                  setShowAdModal(false);
+                  executeShare();
+                }}
+              >
+                <NavigationIcon name="close-circle" size={32} color="#1E1B4B" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.adContentContainer}>
+            <Text style={styles.adTagline}>פרסומת ממומנת</Text>
+            
+            {/* Stylized Placeholder Card */}
+            <View style={styles.adCard}>
+              <NavigationIcon name="logo-google" size={48} color="#4285F4" style={{ marginBottom: 16 }} />
+              <Text style={styles.adTitle}>Google AdMob Test Ad</Text>
+              <Text style={styles.adSubtitle}>מודעת בדיקה לדוגמה - שילוב מוניטיזציה עתידית</Text>
+              <View style={styles.adButtonMock}>
+                <Text style={styles.adButtonMockText}>הורד עכשיו</Text>
+              </View>
+            </View>
+
+            <Text style={styles.adDisclaimer}>
+              רכישת מנוי פרימיום תסיר פרסומות אלו לחלוטין ותאפשר שיתוף ישיר ללא עיכובים.
+            </Text>
+          </View>
+        </SafeAreaView>
+      </Modal>
       
       {/* Header */}
       <View style={styles.header}>
@@ -622,6 +698,97 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
+  },
+  adModalContainer: {
+    flex: 1,
+    backgroundColor: '#FAF9FF',
+    paddingTop: Platform.OS === 'android' ? 35 : 15,
+  },
+  adModalHeader: {
+    height: 50,
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  adTimerBadge: {
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  adTimerText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#6366F1',
+  },
+  adCloseButton: {
+    padding: 4,
+  },
+  adContentContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 30,
+  },
+  adTagline: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    marginBottom: 10,
+  },
+  adCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 30,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05,
+    shadowRadius: 15,
+    elevation: 5,
+    marginBottom: 30,
+  },
+  adTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#1E1B4B',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  adSubtitle: {
+    fontSize: 14,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  adButtonMock: {
+    width: '100%',
+    height: 48,
+    backgroundColor: '#4285F4',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  adButtonMockText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  adDisclaimer: {
+    fontSize: 13,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 20,
   },
 });
 
