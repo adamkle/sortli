@@ -87,8 +87,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     },
     {
       key: 'randomChooser',
-      title: 'בחירה רנדומלית',
-      iconName: 'slot-machine-outline', // מכונת מזל להגרלת תורן
+      title: 'הגרלה מרשימה',
+      iconName: 'circle-double',
       backgroundColor: '#06B6D4', // Teal/Cyan
       lockedFor: [],
     },
@@ -322,20 +322,39 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           <View style={styles.gridContainer}>
             {menuItems.map((item) => {
               const isLocked = item.lockedFor.includes(userTier);
+              const isRandomChooser = item.key === 'randomChooser';
+              
+              const tileStyle = [
+                styles.tile,
+                { backgroundColor: item.backgroundColor },
+                isRandomChooser && {
+                  backgroundColor: '#FAF9FF',
+                  borderWidth: 2,
+                  borderColor: '#6366F1',
+                }
+              ];
+              
+              const iconColor = isRandomChooser ? '#6366F1' : '#FFFFFF';
+              const titleStyle = [
+                styles.tileTitle,
+                isRandomChooser && { color: '#6366F1' }
+              ];
+              const subtitleStyle = [
+                styles.tileSubtitle,
+                isRandomChooser && { color: 'rgba(99, 102, 241, 0.8)' }
+              ];
+
               return (
                 <TouchableOpacity
                   key={item.key}
                   activeOpacity={0.8}
-                  style={[
-                    styles.tile,
-                    { backgroundColor: item.backgroundColor },
-                  ]}
+                  style={tileStyle}
                   onPress={() => handleTilePress(item)}
                 >
                   <View style={styles.tileContent}>
-                    <NavigationIcon name={item.iconName as any} size={36} color="#FFFFFF" style={styles.tileIcon} />
-                    <Text style={styles.tileTitle}>{item.title}</Text>
-                    {item.subtitle && <Text style={styles.tileSubtitle}>{item.subtitle}</Text>}
+                    <NavigationIcon name={item.iconName as any} size={36} color={iconColor} style={styles.tileIcon} />
+                    <Text style={titleStyle}>{item.title}</Text>
+                    {item.subtitle && <Text style={subtitleStyle}>{item.subtitle}</Text>}
                   </View>
 
                   {isLocked && (
