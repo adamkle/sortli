@@ -87,7 +87,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     },
     {
       key: 'randomChooser',
-      title: 'בחירה רנדומלית',
+      title: 'הגרלה',
       iconName: 'slot-machine-outline', // מכונת מזל להגרלת תורן
       backgroundColor: '#06B6D4', // Teal/Cyan
       lockedFor: [],
