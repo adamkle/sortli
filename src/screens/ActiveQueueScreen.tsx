@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,6 +8,7 @@ import {
   Platform,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import NavigationIcon from '../components/NavigationIcon';
 import { SharedList } from '../types';

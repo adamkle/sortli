@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Alert,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,6 +12,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import NavigationIcon from '../components/NavigationIcon';
 import { UserTier, Participant, SharedList } from '../types';
