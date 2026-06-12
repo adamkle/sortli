@@ -350,7 +350,7 @@ const RandomOrderScreen: React.FC<RandomOrderScreenProps> = ({
                   activeOpacity={0.8}
                 >
                   <NavigationIcon name="logo-whatsapp" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
-                  <Text style={styles.shareWhatsAppButtonText}>שילוח קבוצה לוואטסאפ 📝</Text>
+                  <Text style={styles.shareWhatsAppButtonText}>שליחת רשימה לוואטסאפ 📝</Text>
                 </TouchableOpacity>
               </View>
             )}

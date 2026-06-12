@@ -2,15 +2,11 @@
   "expo": {
     "name": "sortli",
     "slug": "sortli",
+    "scheme": "sortli",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/sortliIcon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1E1B4B"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.sortli.app"
@@ -21,7 +17,7 @@
       "package": "com.sortli.app",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/android-icon-foreground.png",
+        "foregroundImage": "./assets/sortliIcon.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#1E1B4B"
@@ -32,9 +28,20 @@
     },
     "extra": {
       "eas": {
-        "projectId": "ea82d7c0-2f9a-4e2b-8a7e-1b2c3d4e5f6a"
+        "projectId": "df5dbc8a-4a31-48ac-9d28-51e572d0c023"
       }
     },
-    "owner": "adamkle"
+    "owner": "sortliapp",
+    "plugins": [
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#1E1B4B"
+        }
+      ]
+    ]
   }
 }

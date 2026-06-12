@@ -506,7 +506,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack, onLoginSuccess }) => {
                     placeholderTextColor="#94A3B8"
                     value={email}
                     onChangeText={(text) => {
-                      setEmail(text);
+                      setEmail(text.trim());
                       if (emailError) setEmailError('');
                       if (resetStatusMessage) setResetStatusMessage('');
                     }}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Alert,
   ScrollView,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import NavigationIcon from '../components/NavigationIcon';
 import BottomAdBanner from '../components/BottomAdBanner';
 
@@ -66,6 +67,37 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   setAbsentParticipantIds,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(false);
+
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      if (userProfile && userProfile.uid && userTier !== 'guest') {
+        try {
+          const value = await AsyncStorage.getItem(`hasSeenOnboarding_${userProfile.uid}`);
+          if (value !== 'true') {
+            setShowWelcomeModal(true);
+          }
+        } catch (e) {
+          console.error('Failed to read hasSeenOnboarding flag', e);
+        }
+      }
+    };
+    checkOnboarding();
+  }, [userProfile, userTier]);
+
+  const handleDismissWelcomeModal = async (navigateToCreateList: boolean) => {
+    setShowWelcomeModal(false);
+    if (userProfile && userProfile.uid) {
+      try {
+        await AsyncStorage.setItem(`hasSeenOnboarding_${userProfile.uid}`, 'true');
+      } catch (e) {
+        console.error('Failed to save hasSeenOnboarding flag', e);
+      }
+    }
+    if (navigateToCreateList) {
+      onNavigateToLists();
+    }
+  };
 
   const participants = useMemo(() => activeList?.participants || [], [activeList]);
   const N = participants.length;
@@ -351,6 +383,96 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         </ScrollView>
         {showAds && <BottomAdBanner />}
       </View>
+
+      {/* Welcome Onboarding Modal */}
+      <Modal
+        visible={showWelcomeModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => handleDismissWelcomeModal(false)}
+      >
+        <View style={styles.welcomeOverlay}>
+          <View style={styles.welcomeCard}>
+            {/* Elegant Top Close button */}
+            <TouchableOpacity 
+              style={styles.welcomeCloseButton} 
+              onPress={() => handleDismissWelcomeModal(false)}
+              activeOpacity={0.7}
+            >
+              <NavigationIcon name="close" size={22} color="#64748B" />
+            </TouchableOpacity>
+
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.welcomeScrollContent}
+            >
+              {/* Header */}
+              <Text style={styles.welcomeTitle}>ברוך הבא ל-Sortli! 🎉</Text>
+              <Text style={styles.welcomeSubtitle}>המקום שבו הרשימות שלך הופכות לסדר מופתי.</Text>
+
+              {/* YouTube Video Placeholder (16:9) */}
+              <View style={styles.videoPlaceholder}>
+                <View style={styles.videoPlayCircle}>
+                  <NavigationIcon name="play" size={20} color="#FFFFFF" style={{ marginRight: -2 }} />
+                </View>
+                <Text style={styles.videoPlaceholderText}>[כאן ישולב סרטון הסבר קצר]</Text>
+              </View>
+
+              {/* Onboarding Steps */}
+              <Text style={styles.stepsSectionTitle}>מה עושים עכשיו?</Text>
+              
+              <View style={styles.stepItem}>
+                <View style={styles.stepBadge}>
+                  <Text style={styles.stepBadgeText}>1</Text>
+                </View>
+                <View style={styles.stepTextContainer}>
+                  <Text style={styles.stepTitle}>יוצרים רשימה</Text>
+                  <Text style={styles.stepDesc}>נותנים שם לרשימה החדשה שלך.</Text>
+                </View>
+              </View>
+
+              <View style={styles.stepItem}>
+                <View style={styles.stepBadge}>
+                  <Text style={styles.stepBadgeText}>2</Text>
+                </View>
+                <View style={styles.stepTextContainer}>
+                  <Text style={styles.stepTitle}>ממלאים את הרשימה בשמות</Text>
+                  <Text style={styles.stepDesc}>מכניסים את כל החברים, המשימות או הפריטים.</Text>
+                </View>
+              </View>
+
+              <View style={styles.stepItem}>
+                <View style={styles.stepBadge}>
+                  <Text style={styles.stepBadgeText}>3</Text>
+                </View>
+                <View style={styles.stepTextContainer}>
+                  <Text style={styles.stepTitle}>ויאללה מתחילים לעבוד על הרשימה!</Text>
+                  <Text style={styles.stepDesc}>ממיינים, מסדרים או מפעילים את מנגנון ההגרלה החכם שלנו.</Text>
+                </View>
+              </View>
+
+              {/* Free Tier Info inner Card */}
+              <View style={styles.freeTierCard}>
+                <Text style={styles.freeTierHeader}>🎁 מה מחכה לך בחשבון החינמי?</Text>
+                <Text style={styles.freeTierLine}>• 2 רשימות מלאות לשימוש במקביל.</Text>
+                <Text style={styles.freeTierLine}>• שמירה מאובטחת בענן למשך 30 ימים.</Text>
+                <Text style={styles.freeTierFooter}>
+                  רוצה יותר? 💖 צבור לבבות באפליקציה כדי לפתוח רשימות נוספות ואפשרויות מתקדמות לחלוטין בחינם!
+                </Text>
+              </View>
+            </ScrollView>
+
+            {/* CTA Button */}
+            <TouchableOpacity
+              style={styles.welcomeCTAButton}
+              onPress={() => handleDismissWelcomeModal(true)}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.welcomeCTAButtonText}>קדימה, בוא ניצור את הרשימה הראשונה! 🚀</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -636,6 +758,185 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     textDecorationLine: 'underline',
+    textAlign: 'center',
+  },
+  welcomeOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  welcomeCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    width: '100%',
+    maxWidth: 380,
+    maxHeight: '85%',
+    padding: 22,
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  welcomeCloseButton: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    zIndex: 10,
+    padding: 6,
+  },
+  welcomeScrollContent: {
+    paddingTop: 10,
+    paddingBottom: 16,
+    alignItems: 'center',
+  },
+  welcomeTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#1E1B4B',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  welcomeSubtitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#475569',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  videoPlaceholder: {
+    width: '100%',
+    aspectRatio: 1.777,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  videoPlayCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#4F46E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  videoPlaceholderText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  stepsSectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1E1B4B',
+    alignSelf: 'stretch',
+    textAlign: 'right',
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  stepItem: {
+    flexDirection: 'row-reverse',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    alignSelf: 'stretch',
+  },
+  stepBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1.5,
+    borderColor: '#4F46E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
+    marginTop: 2,
+  },
+  stepBadgeText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#4F46E5',
+  },
+  stepTextContainer: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  stepTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1E1B4B',
+    textAlign: 'right',
+  },
+  stepDesc: {
+    fontSize: 12,
+    color: '#475569',
+    textAlign: 'right',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  freeTierCard: {
+    backgroundColor: '#FAF5FF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E9D5FF',
+    alignSelf: 'stretch',
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  freeTierHeader: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#7E22CE',
+    textAlign: 'right',
+    marginBottom: 8,
+  },
+  freeTierLine: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#581C87',
+    textAlign: 'right',
+    marginBottom: 4,
+  },
+  freeTierFooter: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B21A8',
+    textAlign: 'right',
+    marginTop: 8,
+    lineHeight: 18,
+  },
+  welcomeCTAButton: {
+    height: 50,
+    backgroundColor: '#4F46E5',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 8,
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  welcomeCTAButtonText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
     textAlign: 'center',
   },
 });

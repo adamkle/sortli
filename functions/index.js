@@ -39,7 +39,10 @@ exports.sendVerificationEmail = functions.https.onCall(async (data, context) => 
     if (error.code === 'already-exists') {
       throw error;
     }
-    if (error.code !== 'auth/user-not-found') {
+    // In local emulator, if auth is not initialized or fails due to credentials, we log a warning and proceed.
+    if (process.env.FUNCTIONS_EMULATOR === 'true') {
+      console.warn("Emulator Mode: Skipping getUserByEmail check due to error:", error.message);
+    } else if (error.code !== 'auth/user-not-found') {
       throw new functions.https.HttpsError('internal', 'שגיאה בבדיקת כתובת אימייל: ' + error.message);
     }
   }
@@ -114,11 +117,19 @@ Sortli היא האפליקציה המושלמת לעזרה בניהול וסיד
     };
 
     console.log("Email dispatch initiated to:", email);
+    if (process.env.FUNCTIONS_EMULATOR === 'true' && (!smtpUser || !smtpPass)) {
+      console.log(`\n==========================================\n[EMULATOR] Verification code for ${email} is: ${code}\n==========================================\n`);
+      return { success: true };
+    }
     await transporter.sendMail(mailOptions);
     console.log("Email dispatched successfully to:", email);
     return { success: true };
   } catch (error) {
     console.error("Nodemailer Error:", error);
+    if (process.env.FUNCTIONS_EMULATOR === 'true') {
+      console.log(`\n==========================================\n[EMULATOR - nodemailer failed] Verification code for ${email} is: ${code}\n==========================================\n`);
+      return { success: true };
+    }
     console.error('Error sending verification email:', error);
     throw new functions.https.HttpsError('internal', 'שגיאה בשליחת אימייל האימות: ' + error.message);
   }
