@@ -30,7 +30,7 @@ const functions = getFunctions(app);
 
 // Toggle this constant to switch between local Firebase Emulators and Live Production Firebase services.
 // Set to true to use local emulators, or false to use live cloud production database & services.
-const USE_EMULATORS = true;
+const USE_EMULATORS = false;
 
 if (__DEV__ && USE_EMULATORS) {
   let localIp = '192.168.68.65'; // Fallback PC IP (Updated to match current Wi-Fi IP)
