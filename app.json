@@ -17,10 +17,9 @@
       "package": "com.sortli.app",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/sortliIcon.png",
-        "backgroundImage": "./assets/android-icon-background.png",
+        "foregroundImage": "./assets/sortliIcon_scaled.png",
         "monochromeImage": "./assets/android-icon-monochrome.png",
-        "backgroundColor": "#1E1B4B"
+        "backgroundColor": "#35597D"
       }
     },
     "web": {

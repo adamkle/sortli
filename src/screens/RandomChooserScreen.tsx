@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -9,6 +9,7 @@ import {
   Alert,
   Modal,
   Share,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -51,6 +52,11 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
   const [isHelpModalOpen, setIsHelpModalOpen] = useState<boolean>(false);
   const [showAdModal, setShowAdModal] = useState<boolean>(false);
   const [adCountdown, setAdCountdown] = useState<number>(5);
+
+  // Slot machine animation states
+  const [isDrawing, setIsDrawing] = useState<boolean>(false);
+  const [drawingName, setDrawingName] = useState<string | null>(null);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const participants = activeList.participants;
   const N = participants.length;
@@ -165,6 +171,7 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
       Alert.alert("שגיאה", "אין משתתפים נוכחים לביצוע ההגרלה.");
       return;
     }
+    if (isDrawing) return; // Prevent double clicks during animation
 
     let nextChosenIds = chosenIds.filter(id => !absentParticipantIds.includes(id));
     let pool = remainingParticipants;
@@ -181,7 +188,57 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
     const selected = pool[randomIndex];
 
     const finalChosenIds = [...nextChosenIds, selected.id];
-    await onUpdateChooser(finalChosenIds, selected.id);
+
+    // If there is only 1 candidate in the pool, skip the slot cycling animation and reveal directly
+    if (pool.length === 1) {
+      scaleAnim.setValue(0.5);
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 4,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+
+      await onUpdateChooser(finalChosenIds, selected.id);
+      return;
+    }
+
+    // Start slot machine animation
+    setIsDrawing(true);
+
+    const TOTAL_STEPS = 17;
+    const runSlotAnimation = (step: number, currentDelay: number) => {
+      if (step >= TOTAL_STEPS) {
+        setDrawingName(null);
+        setIsDrawing(false);
+
+        // Trigger spring bounce animation on completion
+        scaleAnim.setValue(0.5);
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 4,
+          tension: 40,
+          useNativeDriver: true,
+        }).start();
+
+        onUpdateChooser(finalChosenIds, selected.id);
+        return;
+      }
+
+      // Pick a random participant from the current pool of candidates (excluding already chosen)
+      const tempIndex = Math.floor(Math.random() * pool.length);
+      const tempParticipant = pool[tempIndex];
+      const tempName = `${tempParticipant.firstName}${tempParticipant.lastName ? ' ' + tempParticipant.lastName : ''}${tempParticipant.nickname ? ` (${tempParticipant.nickname})` : ''}`;
+      setDrawingName(tempName);
+
+      // Exponential easing delay growth (delay grows from 35ms to around 430ms)
+      const nextDelay = currentDelay * 1.17;
+      setTimeout(() => {
+        runSlotAnimation(step + 1, nextDelay);
+      }, currentDelay);
+    };
+
+    runSlotAnimation(0, 35);
   };
 
   // Reset handler
@@ -363,16 +420,24 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
             {/* Prominent Current Draw Section */}
             <View style={styles.drawDisplayCard}>
               <Text style={styles.drawDisplayLabel}>הנבחר הנוכחי 🏆</Text>
-              {lastChosenParticipant ? (
+              {isDrawing ? (
                 <View style={styles.drawnParticipantContainer}>
-                  <Text style={styles.drawnParticipantName}>
-                    {lastChosenParticipant.firstName} {lastChosenParticipant.lastName || ''}
+                  <Text style={[styles.drawnParticipantName, styles.drawingActiveText]}>
+                    {drawingName}
                   </Text>
-                  {lastChosenParticipant.nickname && (
-                    <Text style={styles.drawnParticipantNickname}>
-                      ({lastChosenParticipant.nickname})
+                </View>
+              ) : lastChosenParticipant ? (
+                <View style={styles.drawnParticipantContainer}>
+                  <Animated.View style={{ transform: [{ scale: scaleAnim }], alignItems: 'center' }}>
+                    <Text style={[styles.drawnParticipantName, styles.highlightedParticipantName]}>
+                      {lastChosenParticipant.firstName} {lastChosenParticipant.lastName || ''}
                     </Text>
-                  )}
+                    {lastChosenParticipant.nickname && (
+                      <Text style={styles.drawnParticipantNickname}>
+                        ({lastChosenParticipant.nickname})
+                      </Text>
+                    )}
+                  </Animated.View>
                 </View>
               ) : (
                 <View style={styles.drawnPlaceholderContainer}>
@@ -473,13 +538,14 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
       {N > 0 && (
         <View style={styles.footer}>
           <TouchableOpacity
-            style={styles.drawButton}
+            style={[styles.drawButton, isDrawing && { backgroundColor: '#94A3B8', shadowColor: 'transparent', elevation: 0 }]}
             onPress={handleDraw}
             activeOpacity={0.8}
+            disabled={isDrawing}
           >
             <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={styles.drawButtonText}>
-                {chosenIds.length === N ? 'התחל סבב חדש והגרל' : 'הגרל תורן הבא'}
+                {isDrawing ? 'מגריל...' : (chosenIds.length === N ? 'התחל סבב חדש והגרל' : 'הגרל תורן הבא')}
               </Text>
               <NavigationIcon name="dice" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
             </View>
@@ -617,11 +683,19 @@ const styles = StyleSheet.create({
     color: '#1E1B4B',
     textAlign: 'center',
   },
+  highlightedParticipantName: {
+    color: '#4F46E5',
+  },
+  drawingActiveText: {
+    color: '#6366F1',
+    opacity: 0.6,
+  },
   drawnParticipantNickname: {
     fontSize: 16,
     fontWeight: '700',
     color: '#4F46E5',
     marginTop: 4,
+    textAlign: 'center',
   },
   drawnPlaceholderContainer: {
     alignItems: 'center',

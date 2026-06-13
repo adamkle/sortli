@@ -326,81 +326,6 @@ export default function App() {
             if (fetchedTier !== 'guest') {
               setHearts(userData.hearts !== undefined ? userData.hearts : 3);
             }
-
-            // 2. Establish real-time query listener for lists where user is allowed
-            const listsQuery = query(
-              collection(db, 'lists'),
-              where('allowedUsers', 'array-contains', user.uid)
-            );
-
-            listListenerUnsubscribeRef.current = onSnapshot(listsQuery, async (snapshot) => {
-              const fetchedLists: SharedList[] = [];
-              snapshot.forEach((d) => {
-                fetchedLists.push({ id: d.id, ...d.data() } as SharedList);
-              });
-
-              if (fetchedLists.length > 0) {
-                setLists(fetchedLists);
-                setActiveList((prevActive) => {
-                  if (newlyCreatedListIdRef.current) {
-                    const newlyCreated = fetchedLists.find((l) => l.id === newlyCreatedListIdRef.current);
-                    if (newlyCreated) {
-                      newlyCreatedListIdRef.current = null;
-                      return newlyCreated;
-                    }
-                  }
-                  if (prevActive) {
-                    const updatedActive = fetchedLists.find((l) => l.id === prevActive.id);
-                    return updatedActive || fetchedLists[0];
-                  }
-                  return fetchedLists[0];
-                });
-              } else {
-                // No lists found. Check for legacy single-user list under lists/{uid} and migrate it
-                try {
-                  const legacyDocRef = doc(db, 'lists', user.uid);
-                  const legacyDocSnap = await getDoc(legacyDocRef);
-                  
-                  let participantsToMigrate: Participant[] = [];
-                  if (legacyDocSnap.exists()) {
-                    const legacyData = legacyDocSnap.data();
-                    if (legacyData && Array.isArray(legacyData.participants)) {
-                      participantsToMigrate = legacyData.participants;
-                    }
-                  }
-
-                  // Create new document in lists collection
-                  const newListRef = doc(collection(db, 'lists'));
-                  const now = new Date();
-                  const newList: SharedList = {
-                    id: newListRef.id,
-                    name: 'הרשימה שלי',
-                    creatorId: user.uid,
-                    allowedUsers: [user.uid],
-                    participants: participantsToMigrate,
-                    queueState: {
-                      matrixSequence: generateFairRotationSequence(participantsToMigrate.map(p => p.id)),
-                      participantsCount: participantsToMigrate.length,
-                      currentGlobalIndex: 0,
-                      currentRound: 1,
-                      updatedAt: now,
-                    },
-                    createdAt: now,
-                    updatedAt: now,
-                    expiresAt: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000),
-                    isPremiumAccount: false,
-                  };
-
-                  await setDoc(newListRef, newList);
-                  // Legacy cleanup is skipped or handled on migration verification
-                } catch (migrationError) {
-                  console.error("Failed to migrate legacy list or create new active list:", migrationError);
-                }
-              }
-            }, (error) => {
-              console.error("Firestore onSnapshot subscription error on lists query:", error);
-            });
-
           } else {
             // Profile does NOT exist yet (onboarding Step 2)
             setUserTier('guest');
@@ -432,6 +357,94 @@ export default function App() {
       unsubscribeFromLists();
     };
   }, []);
+
+  // Real-time Lists Listener: Runs when userProfile UID changes (covers login, signup, and logout)
+  useEffect(() => {
+    // If we have an authenticated profile, subscribe to their lists
+    if (userProfile && userProfile.uid) {
+      unsubscribeFromLists(); // clean up any stale subscriber first
+
+      const listsQuery = query(
+        collection(db, 'lists'),
+        where('allowedUsers', 'array-contains', userProfile.uid)
+      );
+
+      listListenerUnsubscribeRef.current = onSnapshot(listsQuery, async (snapshot) => {
+        const fetchedLists: SharedList[] = [];
+        snapshot.forEach((d) => {
+          fetchedLists.push({ id: d.id, ...d.data() } as SharedList);
+        });
+
+        if (fetchedLists.length > 0) {
+          setLists(fetchedLists);
+          setActiveList((prevActive) => {
+            if (newlyCreatedListIdRef.current) {
+              const newlyCreated = fetchedLists.find((l) => l.id === newlyCreatedListIdRef.current);
+              if (newlyCreated) {
+                newlyCreatedListIdRef.current = null;
+                return newlyCreated;
+              }
+            }
+            if (prevActive) {
+              const updatedActive = fetchedLists.find((l) => l.id === prevActive.id);
+              return updatedActive || fetchedLists[0];
+            }
+            return fetchedLists[0];
+          });
+        } else {
+          // No lists found. Check for legacy single-user list under lists/{uid} and migrate it
+          try {
+            let participantsToMigrate: Participant[] = [];
+            try {
+              const legacyDocRef = doc(db, 'lists', userProfile.uid);
+              const legacyDocSnap = await getDoc(legacyDocRef);
+              
+              if (legacyDocSnap.exists()) {
+                const legacyData = legacyDocSnap.data();
+                if (legacyData && Array.isArray(legacyData.participants)) {
+                  participantsToMigrate = legacyData.participants;
+                }
+              }
+            } catch (readError) {
+              console.warn("Could not read legacy list (possibly permission error or doesn't exist):", readError);
+            }
+
+            // Create new document in lists collection
+            const newListRef = doc(collection(db, 'lists'));
+            const now = new Date();
+            const newList: SharedList = {
+              id: newListRef.id,
+              name: 'הרשימה שלי',
+              creatorId: userProfile.uid,
+              allowedUsers: [userProfile.uid],
+              participants: participantsToMigrate,
+              queueState: {
+                matrixSequence: generateFairRotationSequence(participantsToMigrate.map(p => p.id)),
+                participantsCount: participantsToMigrate.length,
+                currentGlobalIndex: 0,
+                currentRound: 1,
+                updatedAt: now,
+              },
+              createdAt: now,
+              updatedAt: now,
+              expiresAt: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000),
+              isPremiumAccount: false,
+            };
+
+            await setDoc(newListRef, newList);
+          } catch (migrationError) {
+            console.error("Failed to migrate legacy list or create new active list:", migrationError);
+          }
+        }
+      }, (error) => {
+        console.error("Firestore onSnapshot subscription error on lists query:", error);
+      });
+    }
+
+    return () => {
+      unsubscribeFromLists();
+    };
+  }, [userProfile?.uid]);
 
   // Helper to get filtered lists based on active switcher context (private vs. institutional)
   const getFilteredLists = () => {

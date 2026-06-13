@@ -38,11 +38,13 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack, onLoginSuccess }) => {
     setActiveTab(tab);
     setEmailError('');
     setPasswordError('');
+    setConfirmPasswordError('');
     setResetStatusMessage('');
   };
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   // Step 2 profile fields
@@ -63,6 +65,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack, onLoginSuccess }) => {
   // Local state error variables
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [firstNameError, setFirstNameError] = useState('');
   const [lastNameError, setLastNameError] = useState('');
   const [phoneError, setPhoneError] = useState('');
@@ -141,6 +144,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack, onLoginSuccess }) => {
   const handleSignUp = async () => {
     const trimmedEmail = email.trim();
     const trimmedPassword = password.trim();
+    const trimmedConfirmPassword = confirmPassword.trim();
 
     let hasError = false;
     if (!trimmedEmail) {
@@ -159,8 +163,21 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack, onLoginSuccess }) => {
     } else if (trimmedPassword.length < 6) {
       setPasswordError('הסיסמה חייבת להכיל 6 תווים לפחות');
       hasError = true;
+    } else if (!/^[a-zA-Z0-9]+$/.test(trimmedPassword)) {
+      setPasswordError('הסיסמה חייבת להכיל אותיות באנגלית ו/או מספרים בלבד');
+      hasError = true;
     } else {
       setPasswordError('');
+    }
+
+    if (!trimmedConfirmPassword) {
+      setConfirmPasswordError('יש להזין אימות סיסמה');
+      hasError = true;
+    } else if (trimmedPassword !== trimmedConfirmPassword) {
+      setConfirmPasswordError('הסיסמאות אינן תואמות');
+      hasError = true;
+    } else {
+      setConfirmPasswordError('');
     }
 
     if (hasError) return;
@@ -549,6 +566,27 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack, onLoginSuccess }) => {
                     </>
                   )}
                 </View>
+
+                {/* Confirm Password Field (Only during signup) */}
+                {activeTab === 'signup' && (
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>אימות סיסמה</Text>
+                    <TextInput
+                      style={[styles.input, confirmPasswordError ? styles.inputError : null]}
+                      placeholder="הזן סיסמה שנית..."
+                      placeholderTextColor="#94A3B8"
+                      value={confirmPassword}
+                      onChangeText={(text) => {
+                        setConfirmPassword(text);
+                        if (confirmPasswordError) setConfirmPasswordError('');
+                      }}
+                      secureTextEntry
+                      autoCapitalize="none"
+                      textAlign="right"
+                    />
+                    {!!confirmPasswordError && <Text style={styles.errorTextInline}>{confirmPasswordError}</Text>}
+                  </View>
+                )}
 
                 {isLoading ? (
                   <ActivityIndicator size="large" color="#6366F1" style={styles.loader} />

@@ -91,6 +91,19 @@ const ListManagementScreen: React.FC<ListManagementScreenProps> = ({
 
 
 
+  // Helper to execute participant addition and clear fields
+  const executeAddParticipant = (participant: Participant) => {
+    setParticipants((prev) => [participant, ...prev]);
+    
+    // Clear all fields to collapse the sub-panel
+    setNewFirstName('');
+    setNewLastName('');
+    setNewNickname('');
+    setNewGender(undefined);
+    setNewPhone('');
+    setNewNotes('');
+  };
+
   // Add participant (fast input)
   const handleAddParticipant = () => {
     const trimmedName = newFirstName.trim();
@@ -121,15 +134,32 @@ const ListManagementScreen: React.FC<ListManagementScreenProps> = ({
       notes: newNotes ? newNotes.trim() : "",
     };
 
-    setParticipants((prev) => [newParticipant, ...prev]);
-    
-    // Clear all fields to collapse the sub-panel
-    setNewFirstName('');
-    setNewLastName('');
-    setNewNickname('');
-    setNewGender(undefined);
-    setNewPhone('');
-    setNewNotes('');
+    // Duplicate check: checks if firstName, lastName, and nickname are exactly the same
+    const isDuplicate = participants.some(
+      (p) =>
+        p.firstName.trim().toLowerCase() === trimmedName.toLowerCase() &&
+        (p.lastName || '').trim().toLowerCase() === (newLastName ? newLastName.trim().toLowerCase() : "") &&
+        (p.nickname || '').trim().toLowerCase() === (newNickname ? newNickname.trim().toLowerCase() : "")
+    );
+
+    if (isDuplicate) {
+      Alert.alert(
+        "שם קיים ברשימה",
+        "שם זה כבר קיים ברשימה. מומלץ להוסיף כינוי, אות ראשונה של שם המשפחה או תיאור כדי להבדיל בין המשתתפים.",
+        [
+          { text: "ביטול / עדכון שם", style: "cancel" },
+          { 
+            text: "המשך בכל זאת", 
+            onPress: () => {
+              executeAddParticipant(newParticipant);
+            }
+          }
+        ]
+      );
+      return;
+    }
+
+    executeAddParticipant(newParticipant);
   };
 
   // Delete participant
