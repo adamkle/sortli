@@ -217,6 +217,11 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack, onLoginSuccess }) => {
       } else {
         console.error("Sign up error:", error);
         setEmailError(error.message || 'שגיאה בשליחת קוד אימות במייל. אנא נסה שנית.');
+        Alert.alert(
+          'שגיאת רישום / תקשורת',
+          `פרטי השגיאה: ${error.message || error.toString()}\nקוד שגיאה: ${error.code || 'לא ידוע'}\nאנא ודא חיבור לאינטרנט ונסה שוב.`,
+          [{ text: 'אישור' }]
+        );
       }
     } finally {
       setIsLoading(false);

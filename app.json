@@ -20,7 +20,10 @@
         "foregroundImage": "./assets/sortliIcon_scaled.png",
         "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#35597D"
-      }
+      },
+      "permissions": [
+        "android.permission.INTERNET"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
