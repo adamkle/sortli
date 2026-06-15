@@ -182,7 +182,7 @@ const GiftExchangeScreen: React.FC<GiftExchangeScreenProps> = ({
             
             {/* Control Panel */}
             <View style={styles.controlCard}>
-              <Text style={styles.stepperLabel}>כמות מתנות לכל משתתף (K):</Text>
+              <Text style={styles.stepperLabel}>כמות מתנות לכל משתתף:</Text>
               
               <View style={styles.stepperActionRow}>
                 <TouchableOpacity 
@@ -217,7 +217,7 @@ const GiftExchangeScreen: React.FC<GiftExchangeScreenProps> = ({
               activeOpacity={0.8}
             >
               <Text style={styles.actionButtonText}>
-                {isShuffling ? 'מגריל מחדש...' : 'הגרל משלוחי מנות 🎁'}
+                {isShuffling ? 'מגריל מחדש...' : 'הגרלה'}
               </Text>
             </TouchableOpacity>
 
@@ -403,7 +403,7 @@ const GiftExchangeScreen: React.FC<GiftExchangeScreenProps> = ({
               
               <Text style={[styles.helpModalSectionTitle, { marginTop: 16 }]}>דוגמה:</Text>
               <Text style={styles.helpModalText}>
-                מושלם לארגון משלוחי מנות בפורים, חילופי ספרי קריאה, או חלוקת מתנות סוף שנה.
+                מושלם למשלוחי מנות לשכבה, כך כולם מקבלים מספר שווה ואף ילד לא נשכח.
               </Text>
             </ScrollView>
             <TouchableOpacity style={styles.helpModalCloseButton} onPress={() => setIsHelpModalOpen(false)}>

@@ -6,6 +6,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/sortliIcon.png",
+    "splash": {
+      "image": "./assets/sortliIcon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#35597D"
+    },
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
@@ -39,9 +44,9 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-icon.png",
+          "image": "./assets/sortliIcon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#1E1B4B"
+          "backgroundColor": "#35597D"
         }
       ]
     ]

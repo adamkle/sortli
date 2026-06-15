@@ -99,6 +99,40 @@ const GroupsScreen: React.FC<GroupsScreenProps> = ({
     runAutoSplit();
   }, [targetValue, allocationType]);
 
+  // Compute synchronized sequence immediately for local rendering
+  const synchronizedSequence = useMemo(() => {
+    if (!activeList || !activeList.groupsState || !activeList.groupsState.shuffledSequence) {
+      return [];
+    }
+    const currentSequence = activeList.groupsState.shuffledSequence;
+    const participantIds = activeList.participants.map(p => p.id);
+    
+    // Find newly added participants
+    const addedIds = participantIds.filter(id => !currentSequence.includes(id));
+    // Find deleted participants
+    const deletedIds = currentSequence.filter(id => !participantIds.includes(id));
+    
+    if (addedIds.length > 0 || deletedIds.length > 0) {
+      const cleanSequence = currentSequence.filter(id => !deletedIds.includes(id));
+      return [...cleanSequence, ...addedIds];
+    }
+    return currentSequence;
+  }, [activeList?.participants, activeList?.groupsState?.shuffledSequence]);
+
+  // Synchronize new/deleted participants with the existing groupsState sequence on mount or updates
+  useEffect(() => {
+    if (!activeList || !activeList.groupsState || !activeList.groupsState.shuffledSequence) return;
+    
+    const currentSequence = activeList.groupsState.shuffledSequence;
+    if (synchronizedSequence.length > 0 && JSON.stringify(synchronizedSequence) !== JSON.stringify(currentSequence)) {
+      onUpdateGroups(
+        synchronizedSequence,
+        activeList.groupsState.allocationType,
+        activeList.groupsState.targetValue
+      );
+    }
+  }, [synchronizedSequence, activeList?.groupsState?.allocationType, activeList?.groupsState?.targetValue]);
+
   const handleIncrement = () => {
     setTargetValue(prev => prev + 1);
   };
@@ -183,13 +217,13 @@ const GroupsScreen: React.FC<GroupsScreenProps> = ({
 
   // Saved draw output
   const activeGroups = useMemo(() => {
-    if (!hasDraw || !groupsState) return [];
+    if (!hasDraw || !groupsState || synchronizedSequence.length === 0) return [];
     return distributeParticipants(
-      groupsState.shuffledSequence,
+      synchronizedSequence,
       groupsState.allocationType,
       groupsState.targetValue
     );
-  }, [hasDraw, groupsState, absentParticipantIds, participantsMap]);
+  }, [hasDraw, groupsState, synchronizedSequence, absentParticipantIds, participantsMap]);
 
   // Live preview calculations
   const previewGroupsInfo = useMemo(() => {

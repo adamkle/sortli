@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Alert, StyleSheet, View, Text, TouchableOpacity, ScrollView, Animated, TextInput, Modal, Dimensions, Platform } from 'react-native';
+import { Alert, StyleSheet, View, Text, TouchableOpacity, ScrollView, Animated, TextInput, Modal, Dimensions, Platform, BackHandler, ToastAndroid } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
 const isExpoGo = Constants.appOwnership === 'expo';
@@ -32,6 +33,7 @@ import RandomChooserScreen from './src/screens/RandomChooserScreen';
 import GroupsScreen from './src/screens/GroupsScreen';
 import GiftExchangeScreen from './src/screens/GiftExchangeScreen';
 import RandomOrderScreen from './src/screens/RandomOrderScreen';
+import SplitExpensesScreen from './src/screens/SplitExpensesScreen';
 import { auth, db } from './src/config/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, arrayUnion, arrayRemove } from 'firebase/firestore';
@@ -96,7 +98,7 @@ Notifications.setNotificationHandler({
 });
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<'Home' | 'ListManagement' | 'Auth' | 'ActiveQueue' | 'SecretDraw' | 'RandomChooser' | 'Groups' | 'Gifts' | 'RandomOrder'>('Home');
+  const [currentScreen, setCurrentScreen] = useState<'Home' | 'ListManagement' | 'Auth' | 'ActiveQueue' | 'SecretDraw' | 'RandomChooser' | 'Groups' | 'Gifts' | 'RandomOrder' | 'SplitExpenses'>('Home');
   const [previousScreen, setPreviousScreen] = useState<'Home' | 'ListManagement' | 'ActiveQueue'>('Home');
   const [userTier, setUserTier] = useState<UserTier>('guest');
   const [isInitialSync, setIsInitialSync] = useState(false);
@@ -106,6 +108,50 @@ export default function App() {
   const [lists, setLists] = useState<SharedList[]>([]);
   const [activeList, setActiveList] = useState<SharedList | null>(null);
   const [absentParticipantIds, setAbsentParticipantIds] = useState<string[]>([]);
+
+  // Handle Android hardware back button
+  useEffect(() => {
+    let backPressCount = 0;
+    let timeout: any = null;
+
+    const handleBackPress = () => {
+      if (currentScreen === 'Home') {
+        if (backPressCount === 1) {
+          BackHandler.exitApp();
+          return true;
+        }
+
+        backPressCount++;
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('לחץ שוב כדי לצאת', ToastAndroid.SHORT);
+        }
+        
+        timeout = setTimeout(() => {
+          backPressCount = 0;
+        }, 2000);
+
+        return true;
+      }
+
+      // If not on Home, navigate back to previous/home screen
+      if (currentScreen === 'Auth') {
+        setCurrentScreen(previousScreen);
+      } else {
+        setCurrentScreen('Home');
+      }
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      handleBackPress
+    );
+
+    return () => {
+      if (timeout) clearTimeout(timeout);
+      backHandler.remove();
+    };
+  }, [currentScreen, previousScreen]);
 
   // Notifications initialization, permissions & channels config
   useEffect(() => {
@@ -237,6 +283,46 @@ export default function App() {
   const [editLastName, setEditLastName] = useState('');
   const [editPhone, setEditPhone] = useState('');
 
+  // Custom Toast States & Helpers
+  const [customToast, setCustomToast] = useState<{ visible: boolean; message: string; type?: 'heart' | 'info' }>({
+    visible: false,
+    message: '',
+    type: 'info'
+  });
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTimeoutRef = useRef<any>(null);
+
+  const showCustomToast = (message: string, type: 'heart' | 'info' = 'info') => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    setCustomToast({ visible: true, message, type });
+    toastOpacity.setValue(0);
+    Animated.timing(toastOpacity, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+
+    toastTimeoutRef.current = setTimeout(() => {
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => {
+        setCustomToast(prev => ({ ...prev, visible: false }));
+      });
+    }, 2500);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Sidebar animated value (slides in from the right: width is 280, starts at 280)
   const sidebarAnim = useRef(new Animated.Value(280)).current;
   const newlyCreatedListIdRef = useRef<string | null>(null);
@@ -325,6 +411,11 @@ export default function App() {
             setUserTier(fetchedTier);
             if (fetchedTier !== 'guest') {
               setHearts(userData.hearts !== undefined ? userData.hearts : 3);
+            }
+            try {
+              await AsyncStorage.setItem(`hasSeenOnboarding_${user.uid}`, 'true');
+            } catch (e) {
+              console.error('Failed to set onboarding flag during session restore:', e);
             }
           } else {
             // Profile does NOT exist yet (onboarding Step 2)
@@ -814,11 +905,16 @@ export default function App() {
 
   const handleCoreActionClick = async () => {
     if (userTier === 'guest') return;
+    if (hearts >= 5) return;
     
     const nextClicks = actionClicks + 1;
     setActionClicks(nextClicks);
     
-    if (nextClicks > 0 && nextClicks % 5 === 0) {
+    if (nextClicks > 0 && nextClicks % 10 === 8) {
+      showCustomToast('עוד 2 הפעלות ותקבל לב!', 'heart');
+    }
+    
+    if (nextClicks > 0 && nextClicks % 10 === 0) {
       const newHearts = Math.min(5, hearts + 1);
       setHearts(newHearts);
       
@@ -1261,11 +1357,14 @@ export default function App() {
       return (
         <AuthScreen
           onBack={() => setCurrentScreen(previousScreen)}
-          onLoginSuccess={async (tier) => {
+          onLoginSuccess={async (tier, isSignUp = false) => {
             setUserTier(tier);
             const user = auth.currentUser;
             if (user) {
               try {
+                if (!isSignUp) {
+                  await AsyncStorage.setItem(`hasSeenOnboarding_${user.uid}`, 'true');
+                }
                 const userDocRef = doc(db, 'users', user.uid);
                 const userDocSnap = await getDoc(userDocRef);
                 if (userDocSnap.exists()) {
@@ -1357,6 +1456,16 @@ export default function App() {
       );
     }
 
+    if (currentScreen === 'SplitExpenses') {
+      return (
+        <SplitExpensesScreen
+          activeList={activeList}
+          onBack={() => setCurrentScreen('Home')}
+          userTier={userTier}
+        />
+      );
+    }
+
     return (
       <HomeScreen
         userTier={userTier}
@@ -1374,6 +1483,7 @@ export default function App() {
         onNavigateToGroups={() => setCurrentScreen('Groups')}
         onNavigateToGifts={() => setCurrentScreen('Gifts')}
         onNavigateToRandomOrder={() => setCurrentScreen('RandomOrder')}
+        onNavigateToSplitExpenses={() => setCurrentScreen('SplitExpenses')}
         absentParticipantIds={absentParticipantIds}
         setAbsentParticipantIds={setAbsentParticipantIds}
       />
@@ -1930,6 +2040,19 @@ export default function App() {
           </View>
         </View>
       </Modal>
+
+      {customToast.visible && (
+        <Animated.View style={[styles.toastContainer, { opacity: toastOpacity }]}>
+          <View style={styles.toastCard}>
+            {customToast.type === 'heart' && (
+              <View style={styles.toastIconCircle}>
+                <Ionicons name="heart" size={16} color="#EF4444" />
+              </View>
+            )}
+            <Text style={styles.toastText}>{customToast.message}</Text>
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -2515,5 +2638,42 @@ const styles = StyleSheet.create({
     color: '#1E1B4B',
     fontSize: 15,
     fontWeight: '900',
+  },
+  toastContainer: {
+    position: 'absolute',
+    bottom: 50,
+    left: 20,
+    right: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+  },
+  toastCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(51, 65, 85, 0.95)',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  toastIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  toastText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

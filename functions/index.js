@@ -27,6 +27,7 @@ const transporter = nodemailer.createTransport({
  */
 exports.sendVerificationEmail = functions.https.onCall(async (data, context) => {
   const email = data.email;
+  console.log("sendVerificationEmail called for: " + email);
   if (!email || !/\S+@\S+\.\S+/.test(email)) {
     throw new functions.https.HttpsError('invalid-argument', 'נא לספק כתובת אימייל תקינה.');
   }
@@ -142,6 +143,7 @@ Sortli היא האפליקציה המושלמת לעזרה בניהול וסיד
 exports.verifyCode = functions.https.onCall(async (data, context) => {
   const email = data.email;
   const code = data.code;
+  console.log("verifyCode called for: " + email);
 
   if (!email || !code) {
     throw new functions.https.HttpsError('invalid-argument', 'אימייל או קוד חסרים.');

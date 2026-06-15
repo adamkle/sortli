@@ -27,7 +27,7 @@ import { httpsCallable } from 'firebase/functions';
 
 interface AuthScreenProps {
   onBack: () => void;
-  onLoginSuccess: (tier: UserTier) => void;
+  onLoginSuccess: (tier: UserTier, isSignUp?: boolean) => void;
 }
 
 const AuthScreen: React.FC<AuthScreenProps> = ({ onBack, onLoginSuccess }) => {
@@ -327,7 +327,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack, onLoginSuccess }) => {
           'קיבלת 3 לבבות להתחלת הפעילות במערכת.',
           [{ text: 'המשך' }]
         );
-        onLoginSuccess('registered');
+        onLoginSuccess('registered', true);
       } catch (error: any) {
         console.error("Profile creation transaction failed:", error);
         if (error.message === 'INST_NOT_FOUND') {
@@ -366,7 +366,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack, onLoginSuccess }) => {
         'קיבלת 3 לבבות להתחלת הפעילות במערכת.',
         [{ text: 'המשך' }]
       );
-      onLoginSuccess('registered');
+      onLoginSuccess('registered', true);
     } catch (firestoreError: any) {
       console.error("Firestore setDoc failed during profile creation:", firestoreError);
       Alert.alert("שגיאת שמירה", firestoreError.message || firestoreError.toString());

@@ -38,6 +38,10 @@ const NavigationIcon: React.FC<NavigationIconProps> = ({ name, size = 24, color 
       // chevron forward arrow
       path = 'M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z';
       break;
+    case 'chevron-down':
+      // chevron down arrow
+      path = 'M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z';
+      break;
     case 'checkbox':
       // Checked square
       path = 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z';
@@ -184,6 +188,55 @@ const NavigationIcon: React.FC<NavigationIconProps> = ({ name, size = 24, color 
       break;
     default:
       path = '';
+  }
+
+  if (name === 'wallet' || name === 'wallet-outline') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+        <Path 
+          d="M20 7h-3V5c0-1.1-.9-2-2-2H5C3.9 3 3 3.9 3 5v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2z" 
+          stroke={color} 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round" 
+        />
+        <Path 
+          d="M17 14h4v-4h-4c-1.1 0-2 .9-2 2s.9 2 2 2z" 
+          fill={color} 
+          stroke={color} 
+          strokeWidth="2" 
+        />
+        <Circle cx="18.5" cy="12" r="1" fill="#FFFFFF" />
+      </Svg>
+    );
+  }
+
+  if (name === 'cash' || name === 'cash-outline' || name === 'banknote') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+        <Rect x="2" y="6" width="20" height="12" rx="2" stroke={color} strokeWidth="2" />
+        <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth="2" />
+        <Path d="M6 12h.01M18 12h.01" stroke={color} strokeWidth="3" strokeLinecap="round" />
+      </Svg>
+    );
+  }
+
+  if (name === 'coins') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+        {/* Back coin */}
+        <Circle cx="8" cy="14" r="5" stroke={color} strokeWidth="2" fill="none" />
+        <Circle cx="8" cy="14" r="2" stroke={color} strokeWidth="1" fill="none" />
+        
+        {/* Middle coin */}
+        <Circle cx="12" cy="11" r="5" stroke={color} strokeWidth="2" fill="#FFFFFF" />
+        <Circle cx="12" cy="11" r="2" stroke={color} strokeWidth="1" fill="none" />
+
+        {/* Front coin */}
+        <Circle cx="16" cy="8" r="5" stroke={color} strokeWidth="2" fill="#FFFFFF" />
+        <Circle cx="16" cy="8" r="2" stroke={color} strokeWidth="1" fill="none" />
+      </Svg>
+    );
   }
 
   if (name === 'dice' || name === 'dice-outline') {

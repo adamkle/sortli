@@ -43,6 +43,7 @@ interface HomeScreenProps {
   onNavigateToGroups: () => void;
   onNavigateToGifts: () => void;
   onNavigateToRandomOrder: () => void;
+  onNavigateToSplitExpenses: () => void;
   absentParticipantIds: string[];
   setAbsentParticipantIds: (ids: string[]) => void;
 }
@@ -63,6 +64,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigateToGroups,
   onNavigateToGifts,
   onNavigateToRandomOrder,
+  onNavigateToSplitExpenses,
   absentParticipantIds,
   setAbsentParticipantIds,
 }) => {
@@ -149,6 +151,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       lockedFor: ['guest'],
     },
     {
+      key: 'splitExpenses',
+      title: 'תשלום שווה',
+      subtitle: '(חישוב מי משלם למי וכמה)',
+      iconName: 'wallet', // אייקון של ארנק
+      backgroundColor: '#8B5CF6', // Purple
+      lockedFor: [],
+    },
+    {
       key: 'randomOrder',
       title: 'סדר אקראי',
       subtitle: '(שיבוץ משימות, תורנות קבועה)',
@@ -202,6 +212,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         return;
       }
       onNavigateToRandomOrder();
+    } else if (item.key === 'splitExpenses') {
+      if (!activeList) {
+         Alert.alert('רשימה לא נבחרה', 'אנא בחר רשימה פעילה מהתפריט הצדי תחילה.', [{ text: 'אישור' }]);
+        return;
+      }
+      onNavigateToSplitExpenses();
     } else {
       onNavigateToLists();
     }
@@ -507,7 +523,7 @@ const styles = StyleSheet.create({
   },
   mainContentContainer: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 24,
   },
   logoContainer: {
     flexDirection: 'row',
@@ -534,7 +550,7 @@ const styles = StyleSheet.create({
   },
   greetingContainer: {
     alignItems: 'flex-end',
-    marginBottom: 25,
+    marginBottom: 30,
   },
   greetingText: {
     fontSize: 22,
@@ -552,8 +568,8 @@ const styles = StyleSheet.create({
   tile: {
     borderRadius: 24,
     padding: 18,
-    marginBottom: 16,
-    height: 135,
+    marginBottom: 18,
+    height: 145,
     width: '47.5%',
     justifyContent: 'center',
     shadowColor: '#000',
