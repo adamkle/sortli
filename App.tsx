@@ -276,7 +276,7 @@ export default function App() {
   const [isAdModalOpen, setIsAdModalOpen] = useState<boolean>(false);
   const [adTimer, setAdTimer] = useState<number>(5);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState<boolean>(false);
-  const [selectedSubPlan, setSelectedSubPlan] = useState<'yearly' | 'two_years' | 'lifetime'>('yearly');
+  const [selectedSubPlan, setSelectedSubPlan] = useState<'yearly' | 'two_years'>('yearly');
 
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const [editFirstName, setEditFirstName] = useState('');
@@ -1700,7 +1700,7 @@ export default function App() {
                       }}
                     >
                       <Ionicons name="star-outline" size={18} color="#FBBF24" style={{ marginLeft: 8 }} />
-                      <Text style={[styles.drawerItemText, { color: '#FBBF24', fontWeight: '800' }]}>רכישת מנוי שנתי ⭐️</Text>
+                      <Text style={[styles.drawerItemText, { color: '#FBBF24', fontWeight: '800' }]}>רכישת מנוי Premium ⭐️</Text>
                     </TouchableOpacity>
 
                     <View style={[styles.drawerItem, { opacity: 0.5 }]}>
@@ -1916,7 +1916,7 @@ export default function App() {
             {/* Header / Icon */}
             <View style={styles.subModalHeader}>
               <Ionicons name="star" size={40} color="#FBBF24" />
-              <Text style={styles.subModalTitle}>מנוי שנתי Premium ⭐️</Text>
+              <Text style={styles.subModalTitle}>מנוי Premium ⭐️</Text>
             </View>
 
             {/* Description */}
@@ -1951,7 +1951,7 @@ export default function App() {
                 onPress={() => setSelectedSubPlan('yearly')}
               >
                 <Text style={styles.subPlanTitle}>מנוי שנתי ⭐️</Text>
-                <Text style={styles.subPlanPrice}>₪49.90</Text>
+                <Text style={styles.subPlanPrice}>₪29.90</Text>
                 <Text style={styles.subPlanPeriod}>לשנה אחת</Text>
               </TouchableOpacity>
 
@@ -1960,23 +1960,11 @@ export default function App() {
                 onPress={() => setSelectedSubPlan('two_years')}
               >
                 <View style={styles.subPlanBadge}>
-                  <Text style={styles.subPlanBadgeText}>חסוך 20%</Text>
+                  <Text style={styles.subPlanBadgeText}>חסוך 16%</Text>
                 </View>
                 <Text style={styles.subPlanTitle}>מנוי דו-שנתי 💎</Text>
-                <Text style={styles.subPlanPrice}>₪79.90</Text>
+                <Text style={styles.subPlanPrice}>₪49.90</Text>
                 <Text style={styles.subPlanPeriod}>לשנתיים</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.subPlanCard, selectedSubPlan === 'lifetime' && styles.subPlanCardSelected]}
-                onPress={() => setSelectedSubPlan('lifetime')}
-              >
-                <View style={styles.subPlanBadgeBest}>
-                  <Text style={styles.subPlanBadgeText}>הכי משתלם</Text>
-                </View>
-                <Text style={styles.subPlanTitle}>לכל החיים 👑</Text>
-                <Text style={styles.subPlanPrice}>₪149.90</Text>
-                <Text style={styles.subPlanPeriod}>חד-פעמי</Text>
               </TouchableOpacity>
             </View>
 
@@ -1992,17 +1980,15 @@ export default function App() {
                 try {
                   const user = auth.currentUser;
                   if (user) {
-                    const newTier = selectedSubPlan === 'lifetime' ? 'gold' : 'lite';
+                    const newTier: UserTier = 'lite';
                     const userDocRef = doc(db, 'users', user.uid);
                     
                     const subscriptionData = {
                       tier: newTier,
                       subscriptionType: selectedSubPlan,
-                      subscriptionExpiresAt: selectedSubPlan === 'lifetime' 
-                        ? new Date(new Date().setFullYear(new Date().getFullYear() + 100))
-                        : (selectedSubPlan === 'two_years' 
-                          ? new Date(new Date().setFullYear(new Date().getFullYear() + 2)) 
-                          : new Date(new Date().setFullYear(new Date().getFullYear() + 1))),
+                      subscriptionExpiresAt: selectedSubPlan === 'two_years' 
+                        ? new Date(new Date().setFullYear(new Date().getFullYear() + 2)) 
+                        : new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
                       updatedAt: new Date(),
                     };
                     
@@ -2572,56 +2558,51 @@ const styles = StyleSheet.create({
   subPlanCard: {
     flex: 1,
     backgroundColor: '#1E293B',
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: '#475569',
-    padding: 10,
-    marginHorizontal: 4,
+    paddingVertical: 18,
+    paddingHorizontal: 8,
+    marginHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   subPlanCardSelected: {
     borderColor: '#FBBF24',
-    backgroundColor: '#334155',
+    backgroundColor: '#312E81',
   },
   subPlanTitle: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 4,
+    marginBottom: 6,
     textAlign: 'center',
   },
   subPlanPrice: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '900',
     color: '#FBBF24',
-    marginBottom: 2,
+    marginBottom: 4,
     textAlign: 'center',
   },
   subPlanPeriod: {
-    fontSize: 9,
+    fontSize: 11,
     color: '#94A3B8',
     textAlign: 'center',
   },
   subPlanBadge: {
     position: 'absolute',
-    top: -10,
+    top: -12,
     backgroundColor: '#EF4444',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  subPlanBadgeBest: {
-    position: 'absolute',
-    top: -10,
-    backgroundColor: '#10B981',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
   },
   subPlanBadgeText: {
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '900',
     color: '#FFFFFF',
   },
