@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Alert, AppState, StyleSheet, View, Text, TouchableOpacity, ScrollView, Animated, TextInput, Modal, Dimensions, Platform, BackHandler, ToastAndroid } from 'react-native';
+import { Alert, AppState, ActivityIndicator, StyleSheet, View, Text, TouchableOpacity, ScrollView, Animated, TextInput, Modal, Dimensions, Platform, BackHandler, ToastAndroid } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -277,6 +277,8 @@ export default function App() {
   const [adTimer, setAdTimer] = useState<number>(5);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState<boolean>(false);
   const [selectedSubPlan, setSelectedSubPlan] = useState<'yearly' | 'two_years'>('yearly');
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState<boolean>(false);
 
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const [editFirstName, setEditFirstName] = useState('');
@@ -503,6 +505,49 @@ export default function App() {
       subscription.remove();
     };
   }, [userProfile]);
+
+  const handleSimulatedPayment = () => {
+    setIsPaymentProcessing(true);
+    setTimeout(async () => {
+      try {
+        const user = auth.currentUser;
+        if (user) {
+          const newTier: UserTier = 'lite';
+          const userDocRef = doc(db, 'users', user.uid);
+          
+          const subscriptionData = {
+            isPremium: true,
+            premiumStartDate: new Date(),
+            premiumExpiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours validity
+            tier: newTier,
+            subscriptionType: selectedSubPlan,
+            updatedAt: new Date(),
+          };
+          
+          await updateDoc(userDocRef, subscriptionData);
+          
+          setUserTier(newTier);
+          if (userProfile) {
+            setUserProfile({
+              ...userProfile,
+              ...subscriptionData
+            });
+          }
+          
+          Alert.alert(
+            "איזה כיף! 🎉",
+            "איזה כיף, השדרוג בוצע בהצלחה! תתחדשו על גרסת ה-Premium 🎉"
+          );
+        }
+      } catch (e: any) {
+        console.error("Subscription payment upgrade failed:", e);
+        Alert.alert("שגיאה", "שגיאה במהלך שדרוג המנוי: " + e.message);
+      } finally {
+        setIsPaymentProcessing(false);
+        setIsPaymentModalOpen(false);
+      }
+    }, 2500);
+  };
 
   // Real-time Lists Listener: Runs when userProfile UID changes (covers login, signup, and logout)
   useEffect(() => {
@@ -2026,44 +2071,14 @@ export default function App() {
             {/* Simulated Purchase Button */}
             <TouchableOpacity
               style={styles.subModalBuyButton}
-              onPress={async () => {
+              onPress={() => {
                 if (userTier === 'guest') {
                   Alert.alert("התחברות נדרשת", "על מנת לרכוש מנוי פרימיום, יש להירשם או להתחבר למערכת תחילה.");
                   return;
                 }
                 
-                try {
-                  const user = auth.currentUser;
-                  if (user) {
-                    const newTier: UserTier = 'lite';
-                    const userDocRef = doc(db, 'users', user.uid);
-                    
-                    const subscriptionData = {
-                      isPremium: true,
-                      premiumStartDate: new Date(),
-                      premiumExpiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
-                      tier: newTier,
-                      subscriptionType: selectedSubPlan,
-                      updatedAt: new Date(),
-                    };
-                    
-                    await updateDoc(userDocRef, subscriptionData);
-                    
-                    setUserTier(newTier);
-                    if (userProfile) {
-                      setUserProfile({
-                        ...userProfile,
-                        ...subscriptionData
-                      });
-                    }
-                    
-                    Alert.alert("ברכות! 🎉", "מנוי הבדיקה הופעל בהצלחה ל-24 שעות!");
-                    setIsSubscriptionModalOpen(false);
-                  }
-                } catch (e: any) {
-                  console.error("Subscription simulation upgrade failed:", e);
-                  Alert.alert("שגיאה", "שגיאה במהלך רכישת מנוי: " + e.message);
-                }
+                setIsSubscriptionModalOpen(false);
+                setIsPaymentModalOpen(true);
               }}
               activeOpacity={0.8}
             >
@@ -2078,6 +2093,115 @@ export default function App() {
             >
               <Text style={styles.subModalCloseButtonText}>סגור</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Simulated Payment Page Modal */}
+      <Modal
+        visible={isPaymentModalOpen}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => {
+          if (!isPaymentProcessing) {
+            setIsPaymentModalOpen(false);
+          }
+        }}
+      >
+        <View style={styles.payModalOverlay}>
+          <View style={styles.payModalContent}>
+            {/* Header */}
+            <View style={styles.payHeader}>
+              <Ionicons name="lock-closed" size={20} color="#38BDF8" style={{ marginLeft: 8 }} />
+              <Text style={styles.payHeaderTitle}>דף סליקה חיצוני מאובטח</Text>
+            </View>
+
+            {/* Price Container */}
+            <View style={styles.payPriceContainer}>
+              <Text style={styles.payPriceLabel}>סכום לחיוב</Text>
+              <Text style={styles.payPriceValue}>₪{selectedSubPlan === 'two_years' ? '49.90' : '29.90'}</Text>
+            </View>
+
+            {/* Payment Fields (Disabled/Read-only) */}
+            <View style={styles.payForm}>
+              <View style={styles.payFormGroup}>
+                <Text style={styles.payLabel}>שם בעל הכרטיס</Text>
+                <TextInput
+                  style={styles.payInput}
+                  value="ישראל ישראלי"
+                  editable={false}
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+
+              <View style={styles.payFormGroup}>
+                <Text style={styles.payLabel}>מספר כרטיס אשראי</Text>
+                <TextInput
+                  style={styles.payInput}
+                  value="•••• •••• •••• 4580"
+                  editable={false}
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+
+              <View style={styles.payRow}>
+                <View style={styles.payHalfGroup}>
+                  <Text style={styles.payLabel}>תוקף (MM/YY)</Text>
+                  <TextInput
+                    style={styles.payInput}
+                    value="12/29"
+                    editable={false}
+                    placeholderTextColor="#64748B"
+                  />
+                </View>
+                <View style={styles.payHalfGroup}>
+                  <Text style={styles.payLabel}>CVV</Text>
+                  <TextInput
+                    style={styles.payInput}
+                    value="•••"
+                    editable={false}
+                    placeholderTextColor="#64748B"
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Payment Action Button */}
+            <TouchableOpacity
+              style={[styles.payButton, isPaymentProcessing && styles.payButtonDisabled]}
+              onPress={handleSimulatedPayment}
+              disabled={isPaymentProcessing}
+              activeOpacity={0.8}
+            >
+              {isPaymentProcessing ? (
+                <>
+                  <ActivityIndicator size="small" color="#FFFFFF" style={{ marginLeft: 8 }} />
+                  <Text style={styles.payButtonText}>מעבד תשלום...</Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="shield-checkmark" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
+                  <Text style={styles.payButtonText}>בצע תשלום מאובטח</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {/* Cancel Button */}
+            {!isPaymentProcessing && (
+              <TouchableOpacity
+                style={styles.payCancelButton}
+                onPress={() => setIsPaymentModalOpen(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.payCancelButtonText}>ביטול וחזרה לאפליקציה</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Secure Banner */}
+            <View style={styles.paySecureBanner}>
+              <Ionicons name="checkmark-circle" size={14} color="#10B981" style={{ marginLeft: 6 }} />
+              <Text style={styles.paySecureText}>חיבור מוצפן SSL בתקן PCI-DSS</Text>
+            </View>
           </View>
         </View>
       </Modal>
@@ -2711,5 +2835,138 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  payModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  payModalContent: {
+    width: '95%',
+    backgroundColor: '#0F172A',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1.5,
+    borderColor: '#38BDF8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 24,
+  },
+  payHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+    paddingBottom: 12,
+  },
+  payHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#38BDF8',
+    marginRight: 8,
+  },
+  payPriceContainer: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  payPriceLabel: {
+    fontSize: 14,
+    color: '#94A3B8',
+    marginBottom: 4,
+  },
+  payPriceValue: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#10B981',
+  },
+  payForm: {
+    marginBottom: 24,
+  },
+  payFormGroup: {
+    marginBottom: 16,
+  },
+  payLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+    marginBottom: 6,
+    textAlign: 'right',
+  },
+  payInput: {
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 12,
+    padding: 12,
+    color: '#64748B',
+    fontSize: 15,
+    textAlign: 'right',
+  },
+  payRow: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+  },
+  payHalfGroup: {
+    width: '48%',
+  },
+  payButton: {
+    backgroundColor: '#10B981',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    marginBottom: 12,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  payButtonDisabled: {
+    backgroundColor: '#334155',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  payButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    marginLeft: 8,
+  },
+  payCancelButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payCancelButtonText: {
+    color: '#94A3B8',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  paySecureBanner: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1E293B',
+    padding: 8,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  paySecureText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    marginRight: 6,
   },
 });
