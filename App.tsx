@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Alert, StyleSheet, View, Text, TouchableOpacity, ScrollView, Animated, TextInput, Modal, Dimensions, Platform, BackHandler, ToastAndroid } from 'react-native';
+import { Alert, AppState, StyleSheet, View, Text, TouchableOpacity, ScrollView, Animated, TextInput, Modal, Dimensions, Platform, BackHandler, ToastAndroid } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -448,6 +448,61 @@ export default function App() {
       unsubscribeFromLists();
     };
   }, []);
+
+  // Check premium expiry when app state changes, when screen changes, or on initial load
+  const checkPremiumExpiry = async () => {
+    const user = auth.currentUser;
+    if (!user || !userProfile) return;
+
+    if (userProfile.isPremium) {
+      const expiryVal = userProfile.premiumExpiryDate;
+      const expiryDate = (expiryVal && typeof expiryVal.toDate === 'function')
+        ? expiryVal.toDate()
+        : (expiryVal ? new Date(expiryVal) : null);
+
+      if (expiryDate && new Date() > expiryDate) {
+        try {
+          const userDocRef = doc(db, 'users', user.uid);
+          const updateData = {
+            isPremium: false,
+            tier: 'registered' as UserTier,
+            updatedAt: new Date(),
+          };
+          await updateDoc(userDocRef, updateData);
+          setUserTier('registered');
+          setUserProfile((prev: any) => prev ? { ...prev, ...updateData } : null);
+          Alert.alert("פג תוקף המנוי 🕒", "מנוי הבדיקה שלכם ל-24 שעות פג. הפרסומות ומגבלות הלבבות הוחזרו.");
+        } catch (err) {
+          console.error("Failed to update expired premium in DB:", err);
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    // Check on startup / load / profile sync
+    checkPremiumExpiry();
+  }, [userProfile?.isPremium, userProfile?.premiumExpiryDate]);
+
+  useEffect(() => {
+    // Check when currentScreen changes to 'Home'
+    if (currentScreen === 'Home') {
+      checkPremiumExpiry();
+    }
+  }, [currentScreen]);
+
+  useEffect(() => {
+    // Check when app resumes from background
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        checkPremiumExpiry();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [userProfile]);
 
   // Real-time Lists Listener: Runs when userProfile UID changes (covers login, signup, and logout)
   useEffect(() => {
@@ -1984,11 +2039,11 @@ export default function App() {
                     const userDocRef = doc(db, 'users', user.uid);
                     
                     const subscriptionData = {
+                      isPremium: true,
+                      premiumStartDate: new Date(),
+                      premiumExpiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
                       tier: newTier,
                       subscriptionType: selectedSubPlan,
-                      subscriptionExpiresAt: selectedSubPlan === 'two_years' 
-                        ? new Date(new Date().setFullYear(new Date().getFullYear() + 2)) 
-                        : new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
                       updatedAt: new Date(),
                     };
                     
@@ -2002,7 +2057,7 @@ export default function App() {
                       });
                     }
                     
-                    Alert.alert("ברכות! 🎉", `רכישת המנוי בוצעה בהצלחה. חשבונך שודרג ל-Premium.`);
+                    Alert.alert("ברכות! 🎉", "מנוי הבדיקה הופעל בהצלחה ל-24 שעות!");
                     setIsSubscriptionModalOpen(false);
                   }
                 } catch (e: any) {

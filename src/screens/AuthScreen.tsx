@@ -311,6 +311,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack, onLoginSuccess }) => {
             createdAt: new Date(),
             listsCount: 0,
             hearts: 3,
+            isPremium: false,
+            premiumStartDate: null,
+            premiumExpiryDate: null,
           };
           
           transaction.set(userDocRef, newProfile);
@@ -357,6 +360,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack, onLoginSuccess }) => {
       createdAt: new Date(),
       listsCount: 0,
       hearts: 3,
+      isPremium: false,
+      premiumStartDate: null,
+      premiumExpiryDate: null,
     };
 
     try {

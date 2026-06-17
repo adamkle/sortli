@@ -13,6 +13,9 @@ export interface UserProfile {
   institutionCodes: string[];
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;
+  isPremium?: boolean;
+  premiumStartDate?: Timestamp | Date | null;
+  premiumExpiryDate?: Timestamp | Date | null;
 }
 
 export interface Institution {

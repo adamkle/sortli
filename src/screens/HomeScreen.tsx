@@ -236,7 +236,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     }
   };
 
-  const showAds = activeProfileType === 'private' && (userTier === 'guest' || userTier === 'registered');
+  const showAds = activeProfileType === 'private' && (userTier === 'guest' || userTier === 'registered') && !userProfile?.isPremium;
 
   return (
     <SafeAreaView style={styles.safeArea}>
