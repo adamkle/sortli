@@ -170,7 +170,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     },
     {
       key: 'taskAllocation',
-      title: 'חלוקת משימות הוגנת',
+      title: 'חלוקת משימות',
       subtitle: '(שיבוץ משימות שוויוני ומאוזן)',
       iconName: 'calculator-outline', // אייקון מחשבון לחלוקה
       backgroundColor: '#6366F1', // Indigo

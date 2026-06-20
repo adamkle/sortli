@@ -43,6 +43,7 @@ export default function TaskAllocationScreen({
   const [allocations, setAllocations] = useState<ParticipantAllocation[]>([]);
   const [showCalculation, setShowCalculation] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isTasksExpanded, setIsTasksExpanded] = useState(true);
 
   // Modal helpers
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
@@ -116,6 +117,7 @@ export default function TaskAllocationScreen({
     const result = allocateTasksFairly(participants, tasks);
     setAllocations(result);
     setShowCalculation(true);
+    setIsTasksExpanded(false);
     Keyboard.dismiss();
   };
 
@@ -332,7 +334,7 @@ export default function TaskAllocationScreen({
           <NavigationIcon name="arrow-forward" size={26} color="#1E1B4B" />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          חלוקת משימות הוגנת
+          חלוקת משימות
         </Text>
         <TouchableOpacity onPress={() => setIsHelpModalOpen(true)} style={styles.backButton}>
           <NavigationIcon name="help-circle-outline" size={26} color="#6366F1" />
@@ -386,71 +388,84 @@ export default function TaskAllocationScreen({
             )}
           </View>
 
-          {/* Section 2: Tasks */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <NavigationIcon name="calculator-outline" size={20} color="#6366F1" />
-              <Text style={styles.sectionTitle}>משימות ודירוג מאמץ ({tasks.length})</Text>
-            </View>
+          {showCalculation && (
+            <TouchableOpacity
+              style={styles.toggleTasksButton}
+              onPress={() => setIsTasksExpanded(prev => !prev)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.toggleTasksButtonText}>
+                {isTasksExpanded ? 'הסתר עריכת משימות 🔼' : 'עריכת משימות / דירוגים 🔽'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                placeholder="תיאור משימה חדשה..."
-                placeholderTextColor="#94A3B8"
-                value={newTaskTitle}
-                onChangeText={setNewTaskTitle}
-                textAlign="right"
-              />
-              <TouchableOpacity style={styles.addButton} onPress={handleAddTask}>
-                <NavigationIcon name="add" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
+          {(!showCalculation || isTasksExpanded) && (
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <NavigationIcon name="calculator-outline" size={20} color="#6366F1" />
+                <Text style={styles.sectionTitle}>משימות ודירוג מאמץ ({tasks.length})</Text>
+              </View>
 
-            {tasks.length === 0 ? (
-              <Text style={styles.emptyListText}>אין משימות ברשימה. רשום משימה למעלה ולחץ על כפתור ה- +</Text>
-            ) : (
-              <View style={styles.tasksList}>
-                {tasks.map(task => (
-                  <View key={task.id} style={styles.taskRow}>
-                    <View style={styles.taskInfo}>
-                      <Text style={styles.taskTitle}>{task.title}</Text>
-                      <TouchableOpacity onPress={() => handleRemoveTask(task.id)} style={styles.taskRemoveButton}>
-                        <NavigationIcon name="close" size={18} color="#EF4444" />
-                      </TouchableOpacity>
-                    </View>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="תיאור משימה חדשה..."
+                  placeholderTextColor="#94A3B8"
+                  value={newTaskTitle}
+                  onChangeText={setNewTaskTitle}
+                  textAlign="right"
+                />
+                <TouchableOpacity style={styles.addButton} onPress={handleAddTask}>
+                  <NavigationIcon name="add" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
 
-                    {/* Weight selector (1 to 5 chips) */}
-                    <View style={styles.weightSelectorContainer}>
-                      <Text style={styles.weightLabel}>רמת קושי / מאמץ:</Text>
-                      <View style={styles.chipsRow}>
-                        {[1, 2, 3, 4, 5].map(val => {
-                          const isSelected = task.weight === val;
-                          return (
-                            <TouchableOpacity
-                              key={val}
-                              style={[
-                                styles.weightChip,
-                                isSelected && styles.weightChipSelected
-                              ]}
-                              onPress={() => handleUpdateTaskWeight(task.id, val)}
-                            >
-                              <Text style={[
-                                styles.weightChipText,
-                                isSelected && styles.weightChipTextSelected
-                              ]}>
-                                {val}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
+              {tasks.length === 0 ? (
+                <Text style={styles.emptyListText}>אין משימות ברשימה. רשום משימה למעלה ולחץ על כפתור ה- +</Text>
+              ) : (
+                <View style={styles.tasksList}>
+                  {tasks.map(task => (
+                    <View key={task.id} style={styles.taskRow}>
+                      <View style={styles.taskInfo}>
+                        <Text style={styles.taskTitle}>{task.title}</Text>
+                        <TouchableOpacity onPress={() => handleRemoveTask(task.id)} style={styles.taskRemoveButton}>
+                          <NavigationIcon name="close" size={18} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Weight selector (1 to 5 chips) */}
+                      <View style={styles.weightSelectorContainer}>
+                        <Text style={styles.weightLabel}>רמת קושי / מאמץ:</Text>
+                        <View style={styles.chipsRow}>
+                          {[1, 2, 3, 4, 5].map(val => {
+                            const isSelected = task.weight === val;
+                            return (
+                              <TouchableOpacity
+                                key={val}
+                                style={[
+                                  styles.weightChip,
+                                  isSelected && styles.weightChipSelected
+                                ]}
+                                onPress={() => handleUpdateTaskWeight(task.id, val)}
+                              >
+                                <Text style={[
+                                  styles.weightChipText,
+                                  isSelected && styles.weightChipTextSelected
+                                ]}>
+                                  {val}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
                       </View>
                     </View>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Action Button */}
           <TouchableOpacity
@@ -951,6 +966,21 @@ const styles = StyleSheet.create({
   },
   helpModalCloseButtonText: {
     color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  toggleTasksButton: {
+    backgroundColor: '#EEF2FF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  toggleTasksButtonText: {
+    color: '#4338CA',
     fontSize: 14,
     fontWeight: 'bold',
   }
