@@ -35,6 +35,7 @@ import GiftExchangeScreen from './src/screens/GiftExchangeScreen';
 import RandomOrderScreen from './src/screens/RandomOrderScreen';
 import SplitExpensesScreen from './src/screens/SplitExpensesScreen';
 import TaskAllocationScreen from './src/screens/TaskAllocationScreen';
+import { SimulatedRewardedAd } from './src/utils/ads';
 import { auth, db } from './src/config/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, arrayUnion, arrayRemove } from 'firebase/firestore';
@@ -277,6 +278,9 @@ export default function App() {
   const [isAdModalOpen, setIsAdModalOpen] = useState<boolean>(false);
   const [adTimer, setAdTimer] = useState<number>(5);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState<boolean>(false);
+  const [unlockedFeaturesThisSession, setUnlockedFeaturesThisSession] = useState<string[]>([]);
+  const [pendingFeatureUnlock, setPendingFeatureUnlock] = useState<string | null>(null);
+  const [adRewardCallback, setAdRewardCallback] = useState<(() => void) | null>(null);
   const [selectedSubPlan, setSelectedSubPlan] = useState<'yearly' | 'two_years'>('yearly');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
   const [isPaymentProcessing, setIsPaymentProcessing] = useState<boolean>(false);
@@ -356,11 +360,28 @@ export default function App() {
           if (prev <= 1) {
             clearInterval(interval);
             setIsAdModalOpen(false);
-            if (userTier !== 'guest') {
-              setHearts((h) => Math.min(5, h + 1));
-              Alert.alert("הצלחה", "צפית בסרטון בהצלחה וקיבלת לב במתנה! ❤️");
+            
+            if (pendingFeatureUnlock) {
+              setUnlockedFeaturesThisSession((prevUnlocked) => [...prevUnlocked, pendingFeatureUnlock]);
+              setCurrentScreen(pendingFeatureUnlock as any);
+              setPendingFeatureUnlock(null);
+
+              if (adRewardCallback) {
+                adRewardCallback();
+                setAdRewardCallback(null);
+              }
+              Alert.alert("הצלחה", "צפית בסרטון בהצלחה! הפיצ'ר נפתח לשימוש חד-פעמי. 🎉");
             } else {
-              Alert.alert("מודעה הושלמה", "תודה על הצפייה במודעה!");
+              if (userTier !== 'guest') {
+                setHearts((h) => Math.min(5, h + 1));
+                Alert.alert("הצלחה", "צפית בסרטון בהצלחה וקיבלת לב במתנה! ❤️");
+              } else {
+                Alert.alert("מודעה הושלמה", "תודה על הצפייה במודעה!");
+              }
+              if (adRewardCallback) {
+                adRewardCallback();
+                setAdRewardCallback(null);
+              }
             }
             return 0;
           }
@@ -371,7 +392,7 @@ export default function App() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isAdModalOpen, userTier]);
+  }, [isAdModalOpen, userTier, pendingFeatureUnlock, adRewardCallback]);
 
   // Sync active institution code when profile changes
   useEffect(() => {
@@ -519,6 +540,53 @@ export default function App() {
       subscription.remove();
     };
   }, [userProfile]);
+
+  const handleShowRewardedAd = (screen: 'RandomChooser' | 'SplitExpenses' | 'TaskAllocation') => {
+    const ad = new SimulatedRewardedAd();
+    
+    ad.addAdEventListener('loaded', () => {
+      ad.show((onAdComplete) => {
+        setAdRewardCallback(() => () => {
+          onAdComplete();
+        });
+        setPendingFeatureUnlock(screen);
+        setIsAdModalOpen(true);
+      });
+    });
+
+    ad.load();
+  };
+
+  const handleNavigateWithPremiumCheck = (screen: 'RandomChooser' | 'SplitExpenses' | 'TaskAllocation') => {
+    const isPremium = userProfile?.isPremium === true;
+    const isTemporarilyUnlocked = unlockedFeaturesThisSession.includes(screen);
+
+    if (isPremium || isTemporarilyUnlocked) {
+      setCurrentScreen(screen);
+      return;
+    }
+
+    Alert.alert(
+      "פיצ'ר מתקדם 🔒",
+      "פיצ'ר זה זמין למנויי Premium או לצפייה בסרטון פרסומת קצר.",
+      [
+        {
+          text: "ביטול",
+          style: "cancel"
+        },
+        {
+          text: "שדרוג ל-Premium 🚀",
+          onPress: () => setIsSubscriptionModalOpen(true)
+        },
+        {
+          text: "צפייה בסרטון לפתיחה חד-פעמית 📺",
+          onPress: () => {
+            handleShowRewardedAd(screen);
+          }
+        }
+      ]
+    );
+  };
 
   const handleSimulatedPayment = () => {
     setIsPaymentProcessing(true);
@@ -1603,12 +1671,12 @@ export default function App() {
         activeProfileType={activeProfileType}
         onNavigateToActiveQueue={() => setCurrentScreen('ActiveQueue')}
         onNavigateToSecretDraw={() => setCurrentScreen('SecretDraw')}
-        onNavigateToRandomChooser={() => setCurrentScreen('RandomChooser')}
+        onNavigateToRandomChooser={() => handleNavigateWithPremiumCheck('RandomChooser')}
         onNavigateToGroups={() => setCurrentScreen('Groups')}
         onNavigateToGifts={() => setCurrentScreen('Gifts')}
         onNavigateToRandomOrder={() => setCurrentScreen('RandomOrder')}
-        onNavigateToSplitExpenses={() => setCurrentScreen('SplitExpenses')}
-        onNavigateToTaskAllocation={() => setCurrentScreen('TaskAllocation')}
+        onNavigateToSplitExpenses={() => handleNavigateWithPremiumCheck('SplitExpenses')}
+        onNavigateToTaskAllocation={() => handleNavigateWithPremiumCheck('TaskAllocation')}
         absentParticipantIds={absentParticipantIds}
         setAbsentParticipantIds={setAbsentParticipantIds}
       />
@@ -2016,13 +2084,21 @@ export default function App() {
             </View>
             <Text style={styles.adModalTitle}>סרטון ממומן</Text>
             <Text style={styles.adModalDesc}>
-              הסרטון מדגים קבלת פרס. אנא המתן לסיום הצפייה כדי לקבל את הלב שלך.
+              {pendingFeatureUnlock 
+                ? "הסרטון מדגים קבלת פרס. אנא המתן לסיום הצפייה כדי לפתוח את הפיצ'ר." 
+                : "הסרטון מדגים קבלת פרס. אנא המתן לסיום הצפייה כדי לקבל את הלב שלך."}
             </Text>
             
             <View style={{ alignItems: 'center', marginTop: 10 }}>
-              <Text style={styles.adRewardLabel}>הפרס: 1 לב במתנה</Text>
+              <Text style={styles.adRewardLabel}>
+                {pendingFeatureUnlock ? "הפרס: פתיחת פיצ'ר חד-פעמית" : "הפרס: 1 לב במתנה"}
+              </Text>
               <View style={styles.adHeartIndicator}>
-                <Ionicons name="heart" size={32} color="#EF4444" />
+                {pendingFeatureUnlock ? (
+                  <Ionicons name="lock-open-outline" size={32} color="#10B981" />
+                ) : (
+                  <Ionicons name="heart" size={32} color="#EF4444" />
+                )}
               </View>
             </View>
           </View>
