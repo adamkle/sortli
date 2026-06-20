@@ -473,7 +473,20 @@ export default function App() {
           await updateDoc(userDocRef, updateData);
           setUserTier('registered');
           setUserProfile((prev: any) => prev ? { ...prev, ...updateData } : null);
-          Alert.alert("פג תוקף המנוי 🕒", "מנוי הבדיקה שלכם ל-24 שעות פג. הפרסומות ומגבלות הלבבות הוחזרו.");
+          Alert.alert(
+            "פג תוקף המנוי 🕒",
+            "מנוי הבדיקה שלכם ל-24 שעות פג. הפרסומות ומגבלות הלבבות הוחזרו.",
+            [
+              {
+                text: "סגור",
+                style: "cancel"
+              },
+              {
+                text: "שדרג עכשיו 🚀",
+                onPress: () => setIsSubscriptionModalOpen(true)
+              }
+            ]
+          );
         } catch (err) {
           console.error("Failed to update expired premium in DB:", err);
         }
