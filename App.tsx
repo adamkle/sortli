@@ -34,6 +34,7 @@ import GroupsScreen from './src/screens/GroupsScreen';
 import GiftExchangeScreen from './src/screens/GiftExchangeScreen';
 import RandomOrderScreen from './src/screens/RandomOrderScreen';
 import SplitExpensesScreen from './src/screens/SplitExpensesScreen';
+import TaskAllocationScreen from './src/screens/TaskAllocationScreen';
 import { auth, db } from './src/config/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, arrayUnion, arrayRemove } from 'firebase/firestore';
@@ -98,7 +99,7 @@ Notifications.setNotificationHandler({
 });
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<'Home' | 'ListManagement' | 'Auth' | 'ActiveQueue' | 'SecretDraw' | 'RandomChooser' | 'Groups' | 'Gifts' | 'RandomOrder' | 'SplitExpenses'>('Home');
+  const [currentScreen, setCurrentScreen] = useState<'Home' | 'ListManagement' | 'Auth' | 'ActiveQueue' | 'SecretDraw' | 'RandomChooser' | 'Groups' | 'Gifts' | 'RandomOrder' | 'SplitExpenses' | 'TaskAllocation'>('Home');
   const [previousScreen, setPreviousScreen] = useState<'Home' | 'ListManagement' | 'ActiveQueue'>('Home');
   const [userTier, setUserTier] = useState<UserTier>('guest');
   const [isInitialSync, setIsInitialSync] = useState(false);
@@ -1579,6 +1580,16 @@ export default function App() {
       );
     }
 
+    if (currentScreen === 'TaskAllocation') {
+      return (
+        <TaskAllocationScreen
+          activeList={activeList}
+          onBack={() => setCurrentScreen('Home')}
+          userTier={userTier}
+        />
+      );
+    }
+
     return (
       <HomeScreen
         userTier={userTier}
@@ -1597,6 +1608,7 @@ export default function App() {
         onNavigateToGifts={() => setCurrentScreen('Gifts')}
         onNavigateToRandomOrder={() => setCurrentScreen('RandomOrder')}
         onNavigateToSplitExpenses={() => setCurrentScreen('SplitExpenses')}
+        onNavigateToTaskAllocation={() => setCurrentScreen('TaskAllocation')}
         absentParticipantIds={absentParticipantIds}
         setAbsentParticipantIds={setAbsentParticipantIds}
       />

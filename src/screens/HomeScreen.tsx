@@ -44,6 +44,7 @@ interface HomeScreenProps {
   onNavigateToGifts: () => void;
   onNavigateToRandomOrder: () => void;
   onNavigateToSplitExpenses: () => void;
+  onNavigateToTaskAllocation: () => void;
   absentParticipantIds: string[];
   setAbsentParticipantIds: (ids: string[]) => void;
 }
@@ -65,6 +66,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigateToGifts,
   onNavigateToRandomOrder,
   onNavigateToSplitExpenses,
+  onNavigateToTaskAllocation,
   absentParticipantIds,
   setAbsentParticipantIds,
 }) => {
@@ -166,6 +168,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       backgroundColor: '#F97316', // Orange
       lockedFor: [],
     },
+    {
+      key: 'taskAllocation',
+      title: 'חלוקת משימות הוגנת',
+      subtitle: '(שיבוץ משימות שוויוני ומאוזן)',
+      iconName: 'calculator-outline', // אייקון מחשבון לחלוקה
+      backgroundColor: '#6366F1', // Indigo
+      lockedFor: [],
+    },
   ];
 
   const handleTilePress = (item: MenuItem) => {
@@ -218,6 +228,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         return;
       }
       onNavigateToSplitExpenses();
+    } else if (item.key === 'taskAllocation') {
+      if (!activeList) {
+         Alert.alert('רשימה לא נבחרה', 'אנא בחר רשימה פעילה מהתפריט הצדי תחילה.', [{ text: 'אישור' }]);
+        return;
+      }
+      onNavigateToTaskAllocation();
     } else {
       onNavigateToLists();
     }
