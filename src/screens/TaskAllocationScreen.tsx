@@ -19,8 +19,6 @@ import NavigationIcon from '../components/NavigationIcon';
 import { SharedList, UserTier } from '../types';
 import { Task, ParticipantAllocation, allocateTasksFairly } from '../utils/taskAllocation';
 import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system/legacy';
 
 interface TaskAllocationScreenProps {
   activeList: SharedList | null;
@@ -308,27 +306,7 @@ export default function TaskAllocationScreen({
         </html>
       `;
 
-      const { uri } = await Print.printToFileAsync({ html: htmlContent });
-      
-      // Ensure the URI has file:// prefix (required for some Android modules)
-      let resolvedUri = uri;
-      if (!resolvedUri.startsWith('file://')) {
-        resolvedUri = `file://${resolvedUri}`;
-      }
-
-      // Copy file to documentDirectory to bypass Android security scoping issues with cache directories
-      const destinationUri = `${FileSystem.documentDirectory}fair_tasks.pdf`;
-      
-      await FileSystem.copyAsync({
-        from: resolvedUri,
-        to: destinationUri
-      });
-
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(destinationUri, { mimeType: 'application/pdf', dialogTitle: 'שמור או הדפס חלוקת משימות' });
-      } else {
-        Alert.alert('שגיאה', 'שיתוף קבצים אינו זמין במכשיר זה.');
-      }
+      await Print.printAsync({ html: htmlContent });
     } catch (error) {
       console.error('Error generating PDF:', error);
       Alert.alert('שגיאה', 'נכשל ג\'ינרוט קובץ PDF.');
