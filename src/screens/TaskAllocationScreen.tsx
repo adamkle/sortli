@@ -18,6 +18,8 @@ import { StatusBar } from 'expo-status-bar';
 import NavigationIcon from '../components/NavigationIcon';
 import { SharedList, UserTier } from '../types';
 import { Task, ParticipantAllocation, allocateTasksFairly } from '../utils/taskAllocation';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 interface TaskAllocationScreenProps {
   activeList: SharedList | null;
@@ -41,6 +43,7 @@ export default function TaskAllocationScreen({
   // Result state
   const [allocations, setAllocations] = useState<ParticipantAllocation[]>([]);
   const [showCalculation, setShowCalculation] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Modal helpers
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
@@ -147,6 +150,175 @@ export default function TaskAllocationScreen({
       });
     } catch (error) {
       console.error('Error sharing:', error);
+    }
+  };
+
+  // Generate PDF and open system Print/Share interface
+  const handleGeneratePdf = async () => {
+    if (allocations.length === 0) return;
+    setIsGeneratingPdf(true);
+
+    try {
+      const listName = activeList?.name || 'ללא שם';
+      
+      // Generate table rows dynamically
+      let tableRows = '';
+      allocations.forEach(alloc => {
+        let taskListHtml = '';
+        if (alloc.tasks.length === 0) {
+          taskListHtml = '<span style="color: #10B981; font-style: italic;">ללא משימות 🎉</span>';
+        } else {
+          taskListHtml = '<ul class="task-list">';
+          alloc.tasks.forEach(t => {
+            taskListHtml += `<li class="task-item">${t.title} <span class="difficulty-label">(קושי: ${t.weight})</span></li>`;
+          });
+          taskListHtml += '</ul>';
+        }
+
+        tableRows += `
+          <tr>
+            <td style="font-weight: 600;">${alloc.name}</td>
+            <td><span class="load-badge">עומס: ${alloc.totalWeight}</span></td>
+            <td>${taskListHtml}</td>
+          </tr>
+        `;
+      });
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html dir="rtl" lang="he">
+        <head>
+          <meta charset="utf-8">
+          <title>חלוקת משימות הוגנת</title>
+          <style>
+            body {
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              margin: 40px;
+              color: #1e1b4b;
+              background-color: #ffffff;
+            }
+            .header {
+              text-align: center;
+              border-bottom: 2px solid #6366f1;
+              padding-bottom: 15px;
+              margin-bottom: 30px;
+            }
+            h1 {
+              font-size: 24px;
+              margin: 0;
+              color: #1e1b4b;
+            }
+            .subtitle {
+              font-size: 14px;
+              color: #64748b;
+              margin-top: 5px;
+            }
+            .summary {
+              background-color: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              padding: 15px;
+              margin-bottom: 25px;
+              font-size: 14px;
+            }
+            .summary-item {
+              margin-bottom: 8px;
+            }
+            .summary-item strong {
+              color: #4f46e5;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 15px;
+            }
+            th, td {
+              border: 1px solid #e2e8f0;
+              padding: 12px;
+              text-align: right;
+            }
+            th {
+              background-color: #f1f5f9;
+              color: #1e1b4b;
+              font-weight: bold;
+            }
+            tr:nth-child(even) {
+              background-color: #f8fafc;
+            }
+            .load-badge {
+              background-color: #e0e7ff;
+              color: #4338ca;
+              padding: 3px 8px;
+              border-radius: 4px;
+              font-weight: bold;
+              font-size: 12px;
+              display: inline-block;
+            }
+            .task-list {
+              margin: 0;
+              padding-right: 20px;
+            }
+            .task-item {
+              margin-bottom: 4px;
+            }
+            .difficulty-label {
+              color: #64748b;
+              font-size: 12px;
+            }
+            .footer {
+              text-align: center;
+              margin-top: 50px;
+              font-size: 12px;
+              color: #94a3b8;
+              border-top: 1px solid #e2e8f0;
+              padding-top: 15px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>חלוקת משימות הוגנת 🎯</h1>
+            <div class="subtitle">רשימה: ${listName}</div>
+          </div>
+
+          <div class="summary">
+            <div class="summary-item"><strong>תאריך יצירה:</strong> ${new Date().toLocaleDateString('he-IL')}</div>
+            <div class="summary-item"><strong>סה"כ משתתפים:</strong> ${allocations.length}</div>
+            <div class="summary-item"><strong>סה"כ משימות:</strong> ${tasks.length}</div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 25%;">שם משתתף</th>
+                <th style="width: 20%;">עומס כולל</th>
+                <th style="width: 55%;">משימות שהוקצו</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            נוצר באמצעות אפליקציית Sortli - חלוקה שוויונית ומאוזנת 🔄
+          </div>
+        </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'שמור או הדפס חלוקת משימות' });
+      } else {
+        Alert.alert('שגיאה', 'שיתוף קבצים אינו זמין במכשיר זה.');
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      Alert.alert('שגיאה', 'נכשל ג\'ינרוט קובץ PDF.');
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -341,14 +513,29 @@ export default function TaskAllocationScreen({
                 ))}
               </View>
 
-              <TouchableOpacity
-                style={styles.shareButton}
-                onPress={handleShareResult}
-                activeOpacity={0.8}
-              >
-                <NavigationIcon name="logo-whatsapp" size={22} color="#FFFFFF" style={{ marginLeft: 8 }} />
-                <Text style={styles.shareButtonText}>שתף תוצאות בוואטסאפ</Text>
-              </TouchableOpacity>
+              <View style={styles.buttonRow}>
+                <TouchableOpacity
+                  style={[styles.resultButton, styles.whatsappButton]}
+                  onPress={handleShareResult}
+                  activeOpacity={0.8}
+                  disabled={isGeneratingPdf}
+                >
+                  <NavigationIcon name="logo-whatsapp" size={20} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                  <Text style={styles.resultButtonText}>שתף בוואטסאפ</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.resultButton, styles.pdfButton]}
+                  onPress={handleGeneratePdf}
+                  activeOpacity={0.8}
+                  disabled={isGeneratingPdf}
+                >
+                  <NavigationIcon name="print" size={20} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                  <Text style={styles.resultButtonText}>
+                    {isGeneratingPdf ? 'מייצר PDF...' : 'שמור PDF / הדפסה'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </ScrollView>
@@ -686,18 +873,29 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginRight: 6,
   },
-  shareButton: {
+  buttonRow: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    gap: 10,
+  },
+  resultButton: {
+    flex: 1,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#25D366',
     paddingVertical: 12,
     borderRadius: 12,
-    marginTop: 20,
   },
-  shareButtonText: {
+  whatsappButton: {
+    backgroundColor: '#25D366',
+  },
+  pdfButton: {
+    backgroundColor: '#6366F1',
+  },
+  resultButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   modalOverlay: {

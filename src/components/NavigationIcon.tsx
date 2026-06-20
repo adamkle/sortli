@@ -98,6 +98,9 @@ const NavigationIcon: React.FC<NavigationIconProps> = ({ name, size = 24, color 
     case 'remove':
       path = 'M19 13H5v-2h14v2z';
       break;
+    case 'print':
+      path = 'M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z';
+      break;
     case 'list-outline':
     case 'list-sharp':
       path = 'M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z';
