@@ -1578,6 +1578,7 @@ export default function App() {
           activeList={activeList}
           onBack={() => setCurrentScreen('Home')}
           onUpdateSecretDraw={handleUpdateSecretDraw}
+          absentParticipantIds={absentParticipantIds}
           userTier={userTier}
         />
       );

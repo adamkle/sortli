@@ -21,6 +21,7 @@ interface SecretDrawScreenProps {
   onBack: () => void;
   onUpdateSecretDraw: (shuffledSequence: string[]) => Promise<void>;
   userTier: UserTier;
+  absentParticipantIds: string[];
 }
 
 interface PairItem {
@@ -33,6 +34,7 @@ const SecretDrawScreen: React.FC<SecretDrawScreenProps> = ({
   onBack,
   onUpdateSecretDraw,
   userTier,
+  absentParticipantIds,
 }) => {
   const [activeRevealedGiverId, setActiveRevealedGiverId] = useState<string | null>(null);
   const [showAdModal, setShowAdModal] = useState<boolean>(false);
@@ -54,10 +56,19 @@ const SecretDrawScreen: React.FC<SecretDrawScreenProps> = ({
     );
   }
 
-  const participants = activeList.participants;
+  const participants = useMemo(() => {
+    return activeList.participants.filter(p => !absentParticipantIds.includes(p.id));
+  }, [activeList.participants, absentParticipantIds]);
+  
   const N = participants.length;
   const secretDrawState = activeList.secretDrawState;
-  const hasDraw = secretDrawState && secretDrawState.shuffledSequence && secretDrawState.shuffledSequence.length > 0;
+
+  const presentSeq = useMemo(() => {
+    if (!secretDrawState?.shuffledSequence) return [];
+    return secretDrawState.shuffledSequence.filter(id => !absentParticipantIds.includes(id));
+  }, [secretDrawState?.shuffledSequence, absentParticipantIds]);
+
+  const hasDraw = secretDrawState && secretDrawState.shuffledSequence && secretDrawState.shuffledSequence.length > 0 && presentSeq.length >= 2;
 
   const handleDraw = async () => {
     if (N < 2) {
@@ -75,9 +86,9 @@ const SecretDrawScreen: React.FC<SecretDrawScreenProps> = ({
 
   // Derive stable shuffled assignment pairs for display
   const shuffledPairs = useMemo<PairItem[]>(() => {
-    if (!hasDraw || !secretDrawState?.shuffledSequence) return [];
+    if (!hasDraw) return [];
     
-    const seq = secretDrawState.shuffledSequence;
+    const seq = presentSeq;
     const seqLength = seq.length;
     const pairs: PairItem[] = [];
 
@@ -93,7 +104,7 @@ const SecretDrawScreen: React.FC<SecretDrawScreenProps> = ({
     
     // Shuffling the array of pair objects randomly to break the chain visual flow
     return shuffle(pairs);
-  }, [secretDrawState?.shuffledSequence, participantsMap, hasDraw]);
+  }, [presentSeq, participantsMap, hasDraw]);
 
   const handleShareWhatsApp = () => {
     if (userTier === 'guest') {
