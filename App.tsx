@@ -38,7 +38,7 @@ import TaskAllocationScreen from './src/screens/TaskAllocationScreen';
 import { SimulatedRewardedAd } from './src/utils/ads';
 import { auth, db } from './src/config/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, arrayUnion, arrayRemove, deleteField } from 'firebase/firestore';
 import { Participant, UserTier, SharedList } from './src/types';
 import { generateFairRotationSequence } from './src/utils/queueEngine';
 
@@ -1025,41 +1025,33 @@ export default function App() {
           return;
         }
 
+        const updatePayload: any = {
+          'queueState.matrixSequence': newSequence,
+          'queueState.participantsCount': newCount,
+          'queueState.currentGlobalIndex': newIndex,
+          'queueState.currentRound': newRound,
+          'queueState.updatedAt': new Date(),
+          updatedAt: new Date(),
+        };
+
+        if (isAddition || isDeletion) {
+          updatePayload.secretDrawState = deleteField();
+        }
+
         if (isAddition && addedParticipant) {
           // Add participant: use arrayUnion to push participant object atomically
           // and update the queueState since we regenerated the Latin Square
-          await updateDoc(listDocRef, {
-            participants: arrayUnion(addedParticipant),
-            'queueState.matrixSequence': newSequence,
-            'queueState.participantsCount': newCount,
-            'queueState.currentGlobalIndex': newIndex,
-            'queueState.currentRound': newRound,
-            'queueState.updatedAt': new Date(),
-            updatedAt: new Date(),
-          });
+          updatePayload.participants = arrayUnion(addedParticipant);
+          await updateDoc(listDocRef, updatePayload);
         } else if (isDeletion && removedParticipant) {
           // Delete participant: use arrayRemove to remove participant object atomically
           // and update the queueState since we regenerated the Latin Square
-          await updateDoc(listDocRef, {
-            participants: arrayRemove(removedParticipant),
-            'queueState.matrixSequence': newSequence,
-            'queueState.participantsCount': newCount,
-            'queueState.currentGlobalIndex': newIndex,
-            'queueState.currentRound': newRound,
-            'queueState.updatedAt': new Date(),
-            updatedAt: new Date(),
-          });
+          updatePayload.participants = arrayRemove(removedParticipant);
+          await updateDoc(listDocRef, updatePayload);
         } else {
           // Edit/fallback update (replaces the entire payload)
-          await updateDoc(listDocRef, {
-            participants: newParticipants,
-            'queueState.matrixSequence': newSequence,
-            'queueState.participantsCount': newCount,
-            'queueState.currentGlobalIndex': newIndex,
-            'queueState.currentRound': newRound,
-            'queueState.updatedAt': new Date(),
-            updatedAt: new Date(),
-          });
+          updatePayload.participants = newParticipants;
+          await updateDoc(listDocRef, updatePayload);
         }
       } catch (error) {
         console.error("Firestore update failed on updating list participants:", error);
@@ -1078,6 +1070,9 @@ export default function App() {
         },
         updatedAt: new Date(),
       };
+      if (isAddition || isDeletion) {
+        delete updatedActiveList.secretDrawState;
+      }
       setActiveList(updatedActiveList);
       setLists((prev) =>
         prev.map((l) => (l.id === activeList.id ? updatedActiveList : l))
