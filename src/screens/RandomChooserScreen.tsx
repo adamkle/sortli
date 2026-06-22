@@ -182,6 +182,10 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
       // but try to prevent drawing the lastChosenId immediately if N > 1
       nextChosenIds = [];
       pool = presentN > 1 ? presentParticipants.filter(p => p.id !== lastChosenId) : presentParticipants;
+      
+      // Auto-reset state immediately so that givers list and progress counter reset to 0 in the UI
+      // before/during the animation of drawing the next name
+      await onUpdateChooser([], null);
     }
 
     const randomIndex = Math.floor(Math.random() * pool.length);
