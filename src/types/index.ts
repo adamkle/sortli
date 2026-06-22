@@ -78,10 +78,17 @@ export interface SharedList {
   groupsState?: GroupsState;
   giftExchangeState?: GiftExchangeState;
   randomOrderState?: RandomOrderState;
+  expensesState?: ExpensesState;
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;
   expiresAt?: Timestamp | Date;
   isPremiumAccount?: boolean;
+}
+
+export interface ExpensesState {
+  payments: Record<string, number>;
+  excludedParticipantIds: string[];
+  updatedAt: Timestamp | Date;
 }
 
 export interface GiftExchangeState {

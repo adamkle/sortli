@@ -21,6 +21,7 @@ import { SharedList, UserTier } from '../types';
 interface SplitExpensesScreenProps {
   activeList: SharedList | null;
   onBack: () => void;
+  onUpdateExpenses: (payments: Record<string, number>, excludedParticipantIds: string[]) => Promise<void>;
   userTier: UserTier;
 }
 
@@ -30,20 +31,50 @@ interface Transaction {
   amount: number;
 }
 
+const evaluateExpression = (input: string): number => {
+  if (!input) return 0;
+  // Clean up input: keep digits, '+', and dots (for decimals). Remove spaces and other characters.
+  const cleaned = input.replace(/[^0-9+.]/g, '');
+  // Split by '+'
+  const parts = cleaned.split('+');
+  // Sum up all valid numbers
+  const sum = parts.reduce((acc, part) => {
+    const num = parseFloat(part);
+    return acc + (isNaN(num) ? 0 : num);
+  }, 0);
+  return sum;
+};
+
 export default function SplitExpensesScreen({
   activeList,
   onBack,
+  onUpdateExpenses,
   userTier
 }: SplitExpensesScreenProps) {
-  const [payments, setPayments] = useState<Record<string, number>>({});
+  const [payments, setPayments] = useState<Record<string, number>>(() => {
+    return activeList?.expensesState?.payments || {};
+  });
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
-  const [excludedParticipantIds, setExcludedParticipantIds] = useState<string[]>([]);
+  const [excludedParticipantIds, setExcludedParticipantIds] = useState<string[]>(() => {
+    return activeList?.expensesState?.excludedParticipantIds || [];
+  });
   const [amountText, setAmountText] = useState('');
   const [showDropdownModal, setShowDropdownModal] = useState(false);
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
   const [showCalculation, setShowCalculation] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+
+  // Load initial expenses state when activeList changes
+  useEffect(() => {
+    if (activeList?.expensesState) {
+      setPayments(activeList.expensesState.payments || {});
+      setExcludedParticipantIds(activeList.expensesState.excludedParticipantIds || []);
+    } else {
+      setPayments({});
+      setExcludedParticipantIds([]);
+    }
+  }, [activeList?.id]);
 
   // Extract participants from the active list
   const listParticipants = useMemo(() => {
@@ -78,59 +109,65 @@ export default function SplitExpensesScreen({
   }, [selectedParticipantId, payments]);
 
   // Toggle participant exclusion from calculation
-  const toggleParticipantInclusion = (id: string) => {
-    setExcludedParticipantIds(prev => {
-      const isExcluded = prev.includes(id);
-      if (isExcluded) {
-        // Include back
-        return prev.filter(item => item !== id);
-      } else {
-        // Exclude and clear their payment
-        setPayments(p => {
-          const copy = { ...p };
-          delete copy[id];
-          return copy;
-        });
-        // If they were currently selected in dropdown, deselect them
-        if (selectedParticipantId === id) {
-          setSelectedParticipantId(null);
-          setAmountText('');
-        }
-        return [...prev, id];
+  const toggleParticipantInclusion = async (id: string) => {
+    const isExcluded = excludedParticipantIds.includes(id);
+    let newExcluded: string[];
+    let newPayments = { ...payments };
+
+    if (isExcluded) {
+      // Include back
+      newExcluded = excludedParticipantIds.filter(item => item !== id);
+    } else {
+      // Exclude and clear their payment
+      newExcluded = [...excludedParticipantIds, id];
+      delete newPayments[id];
+      setPayments(newPayments);
+      
+      // If they were currently selected in dropdown, deselect them
+      if (selectedParticipantId === id) {
+        setSelectedParticipantId(null);
+        setAmountText('');
       }
-    });
+    }
+
+    setExcludedParticipantIds(newExcluded);
     setShowCalculation(false);
+    await onUpdateExpenses(newPayments, newExcluded);
   };
 
   // Handle saving the payment amount
-  const handleSavePayment = () => {
+  const handleSavePayment = async () => {
     if (!selectedParticipantId) return;
     
-    const amount = parseFloat(amountText) || 0;
+    const amount = evaluateExpression(amountText);
     if (amount < 0) {
       Alert.alert('שגיאה', 'נא להזין סכום תקין הגדול או שווה ל-0.');
       return;
     }
 
-    setPayments(prev => ({
-      ...prev,
+    const newPayments = {
+      ...payments,
       [selectedParticipantId]: amount
-    }));
-    
+    };
+
+    setPayments(newPayments);
     setSelectedParticipantId(null);
     setAmountText('');
     setShowCalculation(false);
     Keyboard.dismiss();
+
+    await onUpdateExpenses(newPayments, excludedParticipantIds);
   };
 
   // Remove payment for a participant
-  const handleRemovePayment = (id: string) => {
-    setPayments(prev => {
-      const copy = { ...prev };
-      delete copy[id];
-      return copy;
-    });
+  const handleRemovePayment = async (id: string) => {
+    const newPayments = { ...payments };
+    delete newPayments[id];
+
+    setPayments(newPayments);
     setShowCalculation(false);
+
+    await onUpdateExpenses(newPayments, excludedParticipantIds);
   };
 
   // Map entered expenses for active participants
@@ -310,9 +347,13 @@ export default function SplitExpensesScreen({
                         <Text style={styles.currencySymbol}>₪</Text>
                         <TextInput
                           style={styles.textInput}
-                          keyboardType="numeric"
+                          keyboardType="numbers-and-punctuation"
                           value={amountText}
-                          onChangeText={(text) => setAmountText(text.replace(/[^0-9.]/g, ''))}
+                          onChangeText={(text) => setAmountText(text.replace(/[^0-9.+]/g, ''))}
+                          onBlur={() => {
+                            const calculated = evaluateExpression(amountText);
+                            setAmountText(calculated > 0 ? calculated.toString() : '');
+                          }}
                           placeholder="0"
                           placeholderTextColor="#94A3B8"
                           autoFocus

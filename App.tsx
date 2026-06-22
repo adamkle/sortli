@@ -1340,6 +1340,41 @@ export default function App() {
     }
   };
 
+  const handleUpdateExpenses = async (payments: Record<string, number>, excludedParticipantIds: string[]) => {
+    await handleCoreActionClick();
+    if (!activeList) return;
+
+    const expensesState = {
+      payments,
+      excludedParticipantIds,
+      updatedAt: new Date(),
+    };
+
+    const user = auth.currentUser;
+    if (user && userTier !== 'guest') {
+      try {
+        const listDocRef = doc(db, 'lists', activeList.id);
+        await updateDoc(listDocRef, {
+          expensesState,
+          updatedAt: new Date(),
+        });
+      } catch (error) {
+        console.error("Firestore update failed on updating expensesState:", error);
+      }
+    } else {
+      // Local updates for Guest mode
+      const updatedActiveList: SharedList = {
+        ...activeList,
+        expensesState,
+        updatedAt: new Date(),
+      };
+      setActiveList(updatedActiveList);
+      setLists((prev) =>
+        prev.map((l) => (l.id === activeList.id ? updatedActiveList : l))
+      );
+    }
+  };
+
   const handleRegenerateQueue = async () => {
     if (!activeList) return;
     const N = activeList.participants.length;
@@ -1639,6 +1674,7 @@ export default function App() {
         <SplitExpensesScreen
           activeList={activeList}
           onBack={() => setCurrentScreen('Home')}
+          onUpdateExpenses={handleUpdateExpenses}
           userTier={userTier}
         />
       );
