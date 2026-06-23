@@ -30,7 +30,7 @@ interface TaskAllocationScreenProps {
     absentParticipantIds?: string[],
     history?: Record<string, string[]>,
     currentRotationIndex?: number,
-    taskPackages?: Task[][]
+    taskPackages?: { tasks: Task[] }[]
   ) => Promise<void>;
   userTier: UserTier;
 }
@@ -124,7 +124,7 @@ export default function TaskAllocationScreen({
     
     return presentParticipants.map((p, i) => {
       const packageIndex = (i + displayRotationIndex) % N;
-      const packageTasks = taskPackages[packageIndex] || [];
+      const packageTasks = taskPackages[packageIndex]?.tasks || [];
       const totalWeight = packageTasks.reduce((sum, t) => sum + t.weight, 0);
       return {
         participantId: p.id,
@@ -212,7 +212,7 @@ export default function TaskAllocationScreen({
 
     if (allocationType === 'recurring') {
       result = allocateTasksFairly(presentParticipants, tasks);
-      const packages = result.map(alloc => alloc.tasks);
+      const packages = result.map(alloc => ({ tasks: alloc.tasks }));
       setAllocations(result);
       setShowCalculation(true);
       setIsTasksExpanded(false);
@@ -255,7 +255,7 @@ export default function TaskAllocationScreen({
     // Calculate new active allocations based on nextRotationIndex
     const nextAllocations = presentParticipants.map((p, i) => {
       const packageIndex = (i + nextRotationIndex) % N;
-      const packageTasks = taskPackages[packageIndex] || [];
+      const packageTasks = taskPackages[packageIndex]?.tasks || [];
       const totalWeight = packageTasks.reduce((sum, t) => sum + t.weight, 0);
       return {
         participantId: p.id,

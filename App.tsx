@@ -1384,7 +1384,7 @@ export default function App() {
     absentParticipantIds?: string[],
     history?: Record<string, string[]>,
     currentRotationIndex?: number,
-    taskPackages?: Task[][]
+    taskPackages?: { tasks: Task[] }[]
   ) => {
     await handleCoreActionClick();
     if (!activeList) return;

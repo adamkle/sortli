@@ -123,7 +123,7 @@ export interface TaskAllocationState {
   absentParticipantIds?: string[];
   history?: Record<string, string[]>;
   currentRotationIndex?: number;
-  taskPackages?: Task[][];
+  taskPackages?: { tasks: Task[] }[];
   updatedAt: Timestamp | Date;
 }
 
