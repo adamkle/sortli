@@ -1,15 +1,5 @@
-export interface Task {
-  id: string;
-  title: string;
-  weight: number; // 1 to 5
-}
-
-export interface ParticipantAllocation {
-  participantId: string;
-  name: string;
-  tasks: Task[];
-  totalWeight: number;
-}
+import { Task, ParticipantAllocation } from '../types';
+export { Task, ParticipantAllocation };
 
 /**
  * Allocates tasks to participants as fairly and evenly as possible.
@@ -21,7 +11,8 @@ export interface ParticipantAllocation {
  */
 export function allocateTasksFairly(
   participants: { id: string; name: string }[],
-  tasks: Task[]
+  tasks: Task[],
+  history?: Record<string, string[]>
 ): ParticipantAllocation[] {
   if (participants.length === 0) return [];
 
@@ -52,10 +43,12 @@ export function allocateTasksFairly(
     let minCandidates: ParticipantAllocation[] = [];
 
     for (const alloc of allocations) {
-      if (alloc.totalWeight < minWeight) {
-        minWeight = alloc.totalWeight;
+      const hasHadTask = history && history[alloc.participantId] && history[alloc.participantId].includes(task.id);
+      const effectiveWeight = alloc.totalWeight + (hasHadTask ? 1000 : 0);
+      if (effectiveWeight < minWeight) {
+        minWeight = effectiveWeight;
         minCandidates = [alloc];
-      } else if (alloc.totalWeight === minWeight) {
+      } else if (effectiveWeight === minWeight) {
         minCandidates.push(alloc);
       }
     }
@@ -73,8 +66,22 @@ export function allocateTasksFairly(
     const min = Math.min(...weights);
     const mean = weights.reduce((sum, w) => sum + w, 0) / weights.length;
     const variance = weights.reduce((sum, w) => sum + Math.pow(w - mean, 2), 0) / weights.length;
-    // Minimize maximum gap, and secondary focus on variance
-    return (max - min) + variance * 0.1;
+    
+    // Calculate history penalty
+    let historyPenalty = 0;
+    if (history) {
+      for (const alloc of allocs) {
+        const pHistory = history[alloc.participantId] || [];
+        for (const t of alloc.tasks) {
+          if (pHistory.includes(t.id)) {
+            historyPenalty += 100; // Large penalty for matching history
+          }
+        }
+      }
+    }
+
+    // Minimize maximum gap, secondary focus on variance, and history penalty
+    return (max - min) + variance * 0.1 + historyPenalty;
   };
 
   let bestScore = getScore(allocations);

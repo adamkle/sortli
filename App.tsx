@@ -39,7 +39,7 @@ import { SimulatedRewardedAd } from './src/utils/ads';
 import { auth, db } from './src/config/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, arrayUnion, arrayRemove, deleteField } from 'firebase/firestore';
-import { Participant, UserTier, SharedList } from './src/types';
+import { Participant, UserTier, SharedList, Task, ParticipantAllocation } from './src/types';
 import { generateFairRotationSequence } from './src/utils/queueEngine';
 
 const DEFAULT_GUEST_PARTICIPANTS: Participant[] = [
@@ -1377,6 +1377,50 @@ export default function App() {
     }
   };
 
+  const handleUpdateTasksState = async (
+    tasks: Task[],
+    allocations: ParticipantAllocation[],
+    allocationType: 'one-time' | 'recurring' | 'weekly',
+    absentParticipantIds?: string[],
+    history?: Record<string, string[]>
+  ) => {
+    await handleCoreActionClick();
+    if (!activeList) return;
+
+    const taskAllocationState = {
+      tasks,
+      allocations,
+      allocationType,
+      absentParticipantIds: absentParticipantIds || [],
+      history: history || {},
+      updatedAt: new Date(),
+    };
+
+    const user = auth.currentUser;
+    if (user && userTier !== 'guest') {
+      try {
+        const listDocRef = doc(db, 'lists', activeList.id);
+        await updateDoc(listDocRef, {
+          taskAllocationState,
+          updatedAt: new Date(),
+        });
+      } catch (error) {
+        console.error("Firestore update failed on updating taskAllocationState:", error);
+      }
+    } else {
+      // Local updates for Guest mode
+      const updatedActiveList: SharedList = {
+        ...activeList,
+        taskAllocationState,
+        updatedAt: new Date(),
+      };
+      setActiveList(updatedActiveList);
+      setLists((prev) =>
+        prev.map((l) => (l.id === activeList.id ? updatedActiveList : l))
+      );
+    }
+  };
+
   const handleRegenerateQueue = async () => {
     if (!activeList) return;
     const N = activeList.participants.length;
@@ -1687,6 +1731,7 @@ export default function App() {
         <TaskAllocationScreen
           activeList={activeList}
           onBack={() => setCurrentScreen('Home')}
+          onUpdateTasksState={handleUpdateTasksState}
           userTier={userTier}
         />
       );

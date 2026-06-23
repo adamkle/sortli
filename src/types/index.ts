@@ -80,6 +80,7 @@ export interface SharedList {
   giftExchangeState?: GiftExchangeState;
   randomOrderState?: RandomOrderState;
   expensesState?: ExpensesState;
+  taskAllocationState?: TaskAllocationState;
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;
   expiresAt?: Timestamp | Date;
@@ -99,6 +100,28 @@ export interface GiftExchangeState {
 
 export interface RandomOrderState {
   shuffledSequence: string[]; // Flat 1D array of randomly shuffled participant IDs
+  updatedAt: Timestamp | Date;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  weight: number;
+}
+
+export interface ParticipantAllocation {
+  participantId: string;
+  name: string;
+  tasks: Task[];
+  totalWeight: number;
+}
+
+export interface TaskAllocationState {
+  tasks: Task[];
+  allocations: ParticipantAllocation[];
+  allocationType: 'one-time' | 'recurring' | 'weekly';
+  absentParticipantIds?: string[];
+  history?: Record<string, string[]>;
   updatedAt: Timestamp | Date;
 }
 

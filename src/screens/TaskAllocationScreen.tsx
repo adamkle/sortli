@@ -23,89 +23,139 @@ import * as Print from 'expo-print';
 interface TaskAllocationScreenProps {
   activeList: SharedList | null;
   onBack: () => void;
+  onUpdateTasksState: (
+    tasks: Task[],
+    allocations: ParticipantAllocation[],
+    allocationType: 'one-time' | 'recurring' | 'weekly',
+    absentParticipantIds?: string[],
+    history?: Record<string, string[]>
+  ) => Promise<void>;
   userTier: UserTier;
 }
 
 export default function TaskAllocationScreen({
   activeList,
   onBack,
+  onUpdateTasksState,
   userTier
 }: TaskAllocationScreenProps) {
-  // Local state for participants list for this session
-  const [participants, setParticipants] = useState<{ id: string; name: string }[]>([]);
-  const [newParticipantName, setNewParticipantName] = useState('');
-
   // Local state for tasks list
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    return activeList?.taskAllocationState?.tasks || [];
+  });
   const [newTaskTitle, setNewTaskTitle] = useState('');
 
   // Result state
-  const [allocations, setAllocations] = useState<ParticipantAllocation[]>([]);
-  const [showCalculation, setShowCalculation] = useState(false);
+  const [allocations, setAllocations] = useState<ParticipantAllocation[]>(() => {
+    return activeList?.taskAllocationState?.allocations || [];
+  });
+  const [showCalculation, setShowCalculation] = useState(() => {
+    return !!(activeList?.taskAllocationState?.allocations && activeList.taskAllocationState.allocations.length > 0);
+  });
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isTasksExpanded, setIsTasksExpanded] = useState(true);
 
-  // Modal helpers
+  // Selector for allocation type
+  const [allocationType, setAllocationType] = useState<'one-time' | 'recurring' | 'weekly'>(() => {
+    return activeList?.taskAllocationState?.allocationType || 'one-time';
+  });
+
+  // Modal and attendance states
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [absentIds, setAbsentIds] = useState<string[]>(() => {
+    return activeList?.taskAllocationState?.absentParticipantIds || [];
+  });
+  const [tempAbsentIds, setTempAbsentIds] = useState<string[]>([]);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
 
-  // Initialize participants from activeList if available
+  // Initialize/sync states from activeList when it changes
   useEffect(() => {
-    if (activeList && activeList.participants) {
-      const initialParts = activeList.participants.map(p => ({
+    if (activeList?.taskAllocationState) {
+      setTasks(activeList.taskAllocationState.tasks || []);
+      setAllocations(activeList.taskAllocationState.allocations || []);
+      setAllocationType(activeList.taskAllocationState.allocationType || 'one-time');
+      setAbsentIds(activeList.taskAllocationState.absentParticipantIds || []);
+      setShowCalculation(!!(activeList.taskAllocationState.allocations && activeList.taskAllocationState.allocations.length > 0));
+    } else {
+      setTasks([]);
+      setAllocations([]);
+      setAllocationType('one-time');
+      setAbsentIds([]);
+      setShowCalculation(false);
+    }
+  }, [activeList?.id]);
+
+  // Compute present participants list
+  const presentParticipants = useMemo(() => {
+    if (!activeList || !activeList.participants) return [];
+    return activeList.participants
+      .filter(p => !absentIds.includes(p.id))
+      .map(p => ({
         id: p.id,
         name: `${p.firstName}${p.lastName ? ' ' + p.lastName : ''}${p.nickname ? ` (${p.nickname})` : ''}`
       }));
-      setParticipants(initialParts);
-    }
-  }, [activeList]);
+  }, [activeList?.participants, absentIds]);
 
-  // Add custom participant
-  const handleAddParticipant = () => {
-    const name = newParticipantName.trim();
-    if (!name) {
-      Alert.alert('שגיאה', 'נא להזין שם משתתף.');
-      return;
-    }
-    const newId = `custom-p-${Date.now()}`;
-    setParticipants(prev => [...prev, { id: newId, name }]);
-    setNewParticipantName('');
-    setShowCalculation(false);
+  const handleOpenModal = () => {
+    setTempAbsentIds(absentIds);
+    setIsModalOpen(true);
   };
 
-  // Remove participant
-  const handleRemoveParticipant = (id: string) => {
-    setParticipants(prev => prev.filter(p => p.id !== id));
+  const handleConfirmAttendance = async (newAbsentIds: string[]) => {
+    setAbsentIds(newAbsentIds);
+    setIsModalOpen(false);
     setShowCalculation(false);
+    setAllocations([]);
+    await onUpdateTasksState(tasks, [], allocationType, newAbsentIds, activeList?.taskAllocationState?.history);
+  };
+
+  const handleUpdateAllocationType = async (type: 'one-time' | 'recurring' | 'weekly') => {
+    setAllocationType(type);
+    setShowCalculation(false);
+    setAllocations([]);
+    await onUpdateTasksState(tasks, [], type, absentIds, activeList?.taskAllocationState?.history);
   };
 
   // Add task
-  const handleAddTask = () => {
+  const handleAddTask = async () => {
     const title = newTaskTitle.trim();
     if (!title) {
       Alert.alert('שגיאה', 'נא להזין תיאור משימה.');
       return;
     }
     const newId = `task-${Date.now()}`;
-    setTasks(prev => [...prev, { id: newId, title, weight: 1 }]);
+    const newTasks = [...tasks, { id: newId, title, weight: 1 }];
+    setTasks(newTasks);
     setNewTaskTitle('');
     setShowCalculation(false);
+    setAllocations([]);
+
+    await onUpdateTasksState(newTasks, [], allocationType, absentIds, activeList?.taskAllocationState?.history);
   };
 
   // Remove task
-  const handleRemoveTask = (id: string) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
+  const handleRemoveTask = async (id: string) => {
+    const newTasks = tasks.filter(t => t.id !== id);
+    setTasks(newTasks);
     setShowCalculation(false);
+    setAllocations([]);
+
+    await onUpdateTasksState(newTasks, [], allocationType, absentIds, activeList?.taskAllocationState?.history);
   };
 
   // Update task weight
-  const handleUpdateTaskWeight = (id: string, weight: number) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, weight } : t));
+  const handleUpdateTaskWeight = async (id: string, weight: number) => {
+    const newTasks = tasks.map(t => t.id === id ? { ...t, weight } : t);
+    setTasks(newTasks);
     setShowCalculation(false);
+    setAllocations([]);
+
+    await onUpdateTasksState(newTasks, [], allocationType, absentIds, activeList?.taskAllocationState?.history);
   };
 
   // Execute fair allocation
-  const handleCalculateAllocation = () => {
-    if (participants.length === 0) {
+  const handleCalculateAllocation = async () => {
+    if (presentParticipants.length === 0) {
       Alert.alert('שגיאה', 'נא להוסיף לפחות משתתף אחד לחלוקה.');
       return;
     }
@@ -114,11 +164,28 @@ export default function TaskAllocationScreen({
       return;
     }
 
-    const result = allocateTasksFairly(participants, tasks);
+    let result: ParticipantAllocation[] = [];
+    let nextHistory: Record<string, string[]> = {};
+
+    if (allocationType === 'recurring') {
+      const history = activeList?.taskAllocationState?.history || {};
+      result = allocateTasksFairly(presentParticipants, tasks, history);
+    } else {
+      // 'one-time' or 'weekly'
+      result = allocateTasksFairly(presentParticipants, tasks);
+    }
+
+    // Build the history for the next recurring run
+    result.forEach(alloc => {
+      nextHistory[alloc.participantId] = alloc.tasks.map(t => t.id);
+    });
+
     setAllocations(result);
     setShowCalculation(true);
     setIsTasksExpanded(false);
     Keyboard.dismiss();
+
+    await onUpdateTasksState(tasks, result, allocationType, absentIds, nextHistory);
   };
 
   // Share allocation result
@@ -351,42 +418,17 @@ export default function TaskAllocationScreen({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Section 1: Participants */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <NavigationIcon name="people-outline" size={20} color="#6366F1" />
-              <Text style={styles.sectionTitle}>משתתפים בחלוקה ({participants.length})</Text>
-            </View>
-
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                placeholder="הוסף שם משתתף..."
-                placeholderTextColor="#94A3B8"
-                value={newParticipantName}
-                onChangeText={setNewParticipantName}
-                textAlign="right"
-              />
-              <TouchableOpacity style={styles.addButton} onPress={handleAddParticipant}>
-                <NavigationIcon name="add" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-
-            {participants.length === 0 ? (
-              <Text style={styles.emptyListText}>טרם נוספו משתתפים. השתמש בתיבה מעל כדי להוסיף.</Text>
-            ) : (
-              <View style={styles.badgeContainer}>
-                {participants.map(p => (
-                  <View key={p.id} style={styles.badge}>
-                    <Text style={styles.badgeText}>{p.name}</Text>
-                    <TouchableOpacity onPress={() => handleRemoveParticipant(p.id)} style={styles.badgeCloseButton}>
-                      <NavigationIcon name="close" size={14} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
+          {/* Active List Row with Edit Icon */}
+          {activeList && (
+            <TouchableOpacity
+              style={styles.activeListRow}
+              onPress={handleOpenModal}
+              activeOpacity={0.7}
+            >
+              <NavigationIcon name="pencil" size={18} color="#4F46E5" style={{ marginLeft: 8 }} />
+              <Text style={styles.activeListText}>רשימה פעילה: {activeList.name}</Text>
+            </TouchableOpacity>
+          )}
 
           {showCalculation && (
             <TouchableOpacity
@@ -467,18 +509,79 @@ export default function TaskAllocationScreen({
             </View>
           )}
 
+          {/* Allocation Type Selector */}
+          <View style={styles.selectorCard}>
+            <Text style={styles.selectorLabel}>סוג חלוקת המשימות:</Text>
+            <View style={styles.segmentContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.segmentButton,
+                  allocationType === 'one-time' && styles.segmentButtonActive,
+                ]}
+                onPress={() => handleUpdateAllocationType('one-time')}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    allocationType === 'one-time' && styles.segmentTextActive,
+                  ]}
+                >
+                  חד פעמית 🎲
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.segmentButton,
+                  allocationType === 'recurring' && styles.segmentButtonActive,
+                ]}
+                onPress={() => handleUpdateAllocationType('recurring')}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    allocationType === 'recurring' && styles.segmentTextActive,
+                  ]}
+                >
+                  חוזרת 🔄
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.segmentButton,
+                  allocationType === 'weekly' && styles.segmentButtonActive,
+                ]}
+                onPress={() => handleUpdateAllocationType('weekly')}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    allocationType === 'weekly' && styles.segmentTextActive,
+                  ]}
+                >
+                  שבועית 📅
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {/* Action Button */}
           <TouchableOpacity
             style={[
               styles.actionButton,
-              (participants.length === 0 || tasks.length === 0) && styles.actionButtonDisabled
+              (presentParticipants.length === 0 || tasks.length === 0) && styles.actionButtonDisabled
             ]}
             onPress={handleCalculateAllocation}
-            disabled={participants.length === 0 || tasks.length === 0}
+            disabled={presentParticipants.length === 0 || tasks.length === 0}
             activeOpacity={0.8}
           >
             <Text style={styles.actionButtonText}>
-              {isStandardLottery ? 'בצע הגרלת משימות שוויונית 🎲' : 'חשב חלוקת משימות הוגנת 🎯'}
+              {allocationType === 'weekly'
+                ? 'חלוקה שבועית (בקרוב) 📅'
+                : isStandardLottery
+                  ? 'בצע הגרלת משימות שוויונית 🎲'
+                  : 'חשב חלוקת משימות הוגנת 🎯'}
             </Text>
           </TouchableOpacity>
 
@@ -575,7 +678,7 @@ export default function TaskAllocationScreen({
               <Text style={[styles.helpModalSectionTitle, { marginTop: 14 }]}>איך עובד האלגוריתם?</Text>
               <Text style={styles.helpModalText}>
                 אם משאירים את הדירוגים כברירת מחדל (כולם 1), מתבצעת הגרלה שוויונית ומאוזנת בה כולם מקבלים כמות משימות שווה ככל הניתן.
-                {'\n\n'}
+                {"\n\n"}
                 אם משנים את דרגות המאמץ, האלגוריתם שואף לצמצם את ההבדלים בעומס המצטבר בין המשתתפים (עומס מחושב כסכום דירוגי המשימות של המשתתף). המערכת מחפשת את השיבוץ שממזער את הפער המקסימלי ויוצר את החלוקה הכי הוגנת שיש.
               </Text>
             </ScrollView>
@@ -586,6 +689,65 @@ export default function TaskAllocationScreen({
               activeOpacity={0.8}
             >
               <Text style={styles.helpModalCloseButtonText}>הבנתי, תודה!</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Attendance Check List Modal */}
+      <Modal
+        visible={isModalOpen}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setIsModalOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setIsModalOpen(false)}>
+                <NavigationIcon name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>עדכון נוכחות זמני</Text>
+              <View style={{ width: 24 }} />
+            </View>
+
+            <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
+              {activeList?.participants?.map(p => {
+                const name = `${p.firstName}${p.lastName ? ' ' + p.lastName : ''}${p.nickname ? ` (${p.nickname})` : ''}`;
+                const isAbsent = tempAbsentIds.includes(p.id);
+                const isPresent = !isAbsent;
+
+                return (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={styles.checkRow}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (isPresent) {
+                        setTempAbsentIds([...tempAbsentIds, p.id]);
+                      } else {
+                        setTempAbsentIds(tempAbsentIds.filter(id => id !== p.id));
+                      }
+                    }}
+                  >
+                    <NavigationIcon
+                      name={isPresent ? "checkbox" : "square-outline"}
+                      size={22}
+                      color={isPresent ? "#4F46E5" : "#94A3B8"}
+                      style={{ marginLeft: 12 }}
+                    />
+                    <Text style={[styles.checkText, !isPresent && styles.absentText]}>{name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.modalConfirmButton}
+              onPress={() => handleConfirmAttendance(tempAbsentIds)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalConfirmButtonText}>אישור</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -983,5 +1145,133 @@ const styles = StyleSheet.create({
     color: '#4338CA',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  activeListRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEF2FF',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  activeListText: {
+    color: '#4338CA',
+    fontSize: 15,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  selectorCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  selectorLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1E1B4B',
+    textAlign: 'right',
+    marginBottom: 10,
+  },
+  segmentContainer: {
+    flexDirection: 'row-reverse',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    padding: 4,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  segmentButtonActive: {
+    backgroundColor: '#FFFFFF',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1.5,
+  },
+  segmentText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  segmentTextActive: {
+    color: '#4338CA',
+    fontWeight: 'bold',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    width: '100%',
+    maxWidth: 340,
+    maxHeight: '80%',
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 15,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    marginBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#1E1B4B',
+  },
+  modalList: {
+    marginVertical: 10,
+  },
+  checkRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  checkText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#334155',
+    textAlign: 'right',
+    flex: 1,
+  },
+  absentText: {
+    color: '#94A3B8',
+    textDecorationLine: 'line-through',
+  },
+  modalConfirmButton: {
+    height: 48,
+    backgroundColor: '#4F46E5',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  modalConfirmButtonText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
   }
 });
