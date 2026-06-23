@@ -105,8 +105,11 @@ export default function SplitExpensesScreen({
     if (selectedParticipantId) {
       const existingPayment = payments[selectedParticipantId] || 0;
       setAmountText(existingPayment > 0 ? existingPayment.toString() : '');
+    } else {
+      setAmountText('');
     }
-  }, [selectedParticipantId, payments]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedParticipantId]);
 
   // Toggle participant exclusion from calculation
   const toggleParticipantInclusion = async (id: string) => {
