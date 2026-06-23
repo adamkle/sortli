@@ -122,6 +122,8 @@ export interface TaskAllocationState {
   allocationType: 'one-time' | 'recurring' | 'weekly';
   absentParticipantIds?: string[];
   history?: Record<string, string[]>;
+  currentRotationIndex?: number;
+  taskPackages?: Task[][];
   updatedAt: Timestamp | Date;
 }
 

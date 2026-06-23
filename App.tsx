@@ -1382,7 +1382,9 @@ export default function App() {
     allocations: ParticipantAllocation[],
     allocationType: 'one-time' | 'recurring' | 'weekly',
     absentParticipantIds?: string[],
-    history?: Record<string, string[]>
+    history?: Record<string, string[]>,
+    currentRotationIndex?: number,
+    taskPackages?: Task[][]
   ) => {
     await handleCoreActionClick();
     if (!activeList) return;
@@ -1393,6 +1395,8 @@ export default function App() {
       allocationType,
       absentParticipantIds: absentParticipantIds || [],
       history: history || {},
+      currentRotationIndex: currentRotationIndex !== undefined ? currentRotationIndex : (activeList.taskAllocationState?.currentRotationIndex ?? 0),
+      taskPackages: taskPackages !== undefined ? taskPackages : (activeList.taskAllocationState?.taskPackages || []),
       updatedAt: new Date(),
     };
 

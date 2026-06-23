@@ -28,7 +28,9 @@ interface TaskAllocationScreenProps {
     allocations: ParticipantAllocation[],
     allocationType: 'one-time' | 'recurring' | 'weekly',
     absentParticipantIds?: string[],
-    history?: Record<string, string[]>
+    history?: Record<string, string[]>,
+    currentRotationIndex?: number,
+    taskPackages?: Task[][]
   ) => Promise<void>;
   userTier: UserTier;
 }
@@ -68,6 +70,13 @@ export default function TaskAllocationScreen({
   const [tempAbsentIds, setTempAbsentIds] = useState<string[]>([]);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
 
+  // Time-travel carousel state
+  const [viewOffset, setViewOffset] = useState(0);
+
+  // Derive rotation parameters
+  const currentRotationIndex = activeList?.taskAllocationState?.currentRotationIndex || 0;
+  const taskPackages = activeList?.taskAllocationState?.taskPackages || [];
+
   // Initialize/sync states from activeList when it changes
   useEffect(() => {
     if (activeList?.taskAllocationState) {
@@ -85,6 +94,11 @@ export default function TaskAllocationScreen({
     }
   }, [activeList?.id]);
 
+  // Reset viewOffset when list or its rotation index changes
+  useEffect(() => {
+    setViewOffset(0);
+  }, [activeList?.id, activeList?.taskAllocationState?.currentRotationIndex]);
+
   // Compute present participants list
   const presentParticipants = useMemo(() => {
     if (!activeList || !activeList.participants) return [];
@@ -96,6 +110,31 @@ export default function TaskAllocationScreen({
       }));
   }, [activeList?.participants, absentIds]);
 
+  // Compute the virtual/displayed allocations (in-memory carousel preview)
+  const displayedAllocations = useMemo(() => {
+    if (allocationType !== 'recurring') {
+      return allocations;
+    }
+    const N = presentParticipants.length;
+    if (N === 0 || !taskPackages || taskPackages.length === 0) {
+      return allocations;
+    }
+    // Correct modulo in JS/TS
+    const displayRotationIndex = (((currentRotationIndex + viewOffset) % N) + N) % N;
+    
+    return presentParticipants.map((p, i) => {
+      const packageIndex = (i + displayRotationIndex) % N;
+      const packageTasks = taskPackages[packageIndex] || [];
+      const totalWeight = packageTasks.reduce((sum, t) => sum + t.weight, 0);
+      return {
+        participantId: p.id,
+        name: p.name,
+        tasks: packageTasks,
+        totalWeight
+      };
+    });
+  }, [allocationType, allocations, presentParticipants, taskPackages, currentRotationIndex, viewOffset]);
+
   const handleOpenModal = () => {
     setTempAbsentIds(absentIds);
     setIsModalOpen(true);
@@ -106,14 +145,16 @@ export default function TaskAllocationScreen({
     setIsModalOpen(false);
     setShowCalculation(false);
     setAllocations([]);
-    await onUpdateTasksState(tasks, [], allocationType, newAbsentIds, activeList?.taskAllocationState?.history);
+    setViewOffset(0);
+    await onUpdateTasksState(tasks, [], allocationType, newAbsentIds, undefined, 0, []);
   };
 
   const handleUpdateAllocationType = async (type: 'one-time' | 'recurring' | 'weekly') => {
     setAllocationType(type);
     setShowCalculation(false);
     setAllocations([]);
-    await onUpdateTasksState(tasks, [], type, absentIds, activeList?.taskAllocationState?.history);
+    setViewOffset(0);
+    await onUpdateTasksState(tasks, [], type, absentIds, undefined, 0, []);
   };
 
   // Add task
@@ -129,8 +170,9 @@ export default function TaskAllocationScreen({
     setNewTaskTitle('');
     setShowCalculation(false);
     setAllocations([]);
+    setViewOffset(0);
 
-    await onUpdateTasksState(newTasks, [], allocationType, absentIds, activeList?.taskAllocationState?.history);
+    await onUpdateTasksState(newTasks, [], allocationType, absentIds, undefined, 0, []);
   };
 
   // Remove task
@@ -139,8 +181,9 @@ export default function TaskAllocationScreen({
     setTasks(newTasks);
     setShowCalculation(false);
     setAllocations([]);
+    setViewOffset(0);
 
-    await onUpdateTasksState(newTasks, [], allocationType, absentIds, activeList?.taskAllocationState?.history);
+    await onUpdateTasksState(newTasks, [], allocationType, absentIds, undefined, 0, []);
   };
 
   // Update task weight
@@ -149,8 +192,9 @@ export default function TaskAllocationScreen({
     setTasks(newTasks);
     setShowCalculation(false);
     setAllocations([]);
+    setViewOffset(0);
 
-    await onUpdateTasksState(newTasks, [], allocationType, absentIds, activeList?.taskAllocationState?.history);
+    await onUpdateTasksState(newTasks, [], allocationType, absentIds, undefined, 0, []);
   };
 
   // Execute fair allocation
@@ -165,32 +209,79 @@ export default function TaskAllocationScreen({
     }
 
     let result: ParticipantAllocation[] = [];
-    let nextHistory: Record<string, string[]> = {};
 
     if (allocationType === 'recurring') {
-      const history = activeList?.taskAllocationState?.history || {};
-      result = allocateTasksFairly(presentParticipants, tasks, history);
+      result = allocateTasksFairly(presentParticipants, tasks);
+      const packages = result.map(alloc => alloc.tasks);
+      setAllocations(result);
+      setShowCalculation(true);
+      setIsTasksExpanded(false);
+      setViewOffset(0);
+      Keyboard.dismiss();
+
+      await onUpdateTasksState(tasks, result, allocationType, absentIds, undefined, 0, packages);
     } else {
       // 'one-time' or 'weekly'
       result = allocateTasksFairly(presentParticipants, tasks);
-    }
+      setAllocations(result);
+      setShowCalculation(true);
+      setIsTasksExpanded(false);
+      setViewOffset(0);
+      Keyboard.dismiss();
 
-    // Build the history for the next recurring run
-    result.forEach(alloc => {
-      nextHistory[alloc.participantId] = alloc.tasks.map(t => t.id);
+      await onUpdateTasksState(tasks, result, allocationType, absentIds, undefined, 0, []);
+    }
+  };
+
+  // Carousel navigation handlers
+  const handlePrevRound = () => {
+    const N = presentParticipants.length;
+    if (N === 0) return;
+    setViewOffset(prev => prev - 1);
+  };
+
+  const handleNextRound = () => {
+    const N = presentParticipants.length;
+    if (N === 0) return;
+    setViewOffset(prev => prev + 1);
+  };
+
+  const handleAdvanceRotation = async () => {
+    const N = presentParticipants.length;
+    if (N === 0 || !taskPackages || taskPackages.length === 0) return;
+
+    const nextRotationIndex = (currentRotationIndex + 1) % N;
+    
+    // Calculate new active allocations based on nextRotationIndex
+    const nextAllocations = presentParticipants.map((p, i) => {
+      const packageIndex = (i + nextRotationIndex) % N;
+      const packageTasks = taskPackages[packageIndex] || [];
+      const totalWeight = packageTasks.reduce((sum, t) => sum + t.weight, 0);
+      return {
+        participantId: p.id,
+        name: p.name,
+        tasks: packageTasks,
+        totalWeight
+      };
     });
 
-    setAllocations(result);
-    setShowCalculation(true);
-    setIsTasksExpanded(false);
-    Keyboard.dismiss();
+    setAllocations(nextAllocations);
+    setViewOffset(0); // Reset UI offset to 0
 
-    await onUpdateTasksState(tasks, result, allocationType, absentIds, nextHistory);
+    await onUpdateTasksState(
+      tasks,
+      nextAllocations,
+      allocationType,
+      absentIds,
+      undefined,
+      nextRotationIndex,
+      taskPackages
+    );
   };
 
   // Share allocation result
   const handleShareResult = async () => {
-    if (allocations.length === 0) return;
+    if (displayedAllocations.length === 0) return;
 
     let shareText = `📋 *חלוקת משימות הוגנת מבית Sortli 🎯*\n`;
     if (activeList) {
@@ -198,7 +289,7 @@ export default function TaskAllocationScreen({
     }
     shareText += `\n`;
 
-    allocations.forEach(alloc => {
+    displayedAllocations.forEach(alloc => {
       shareText += `👤 *${alloc.name}* (עומס כולל: ${alloc.totalWeight}):\n`;
       if (alloc.tasks.length === 0) {
         shareText += `  - ללא משימות 🎉\n`;
@@ -223,7 +314,7 @@ export default function TaskAllocationScreen({
 
   // Generate PDF and open system Print/Share interface
   const handleGeneratePdf = async () => {
-    if (allocations.length === 0) return;
+    if (displayedAllocations.length === 0) return;
     setIsGeneratingPdf(true);
 
     try {
@@ -231,7 +322,7 @@ export default function TaskAllocationScreen({
       
       // Generate table rows dynamically
       let tableRows = '';
-      allocations.forEach(alloc => {
+      displayedAllocations.forEach(alloc => {
         let taskListHtml = '';
         if (alloc.tasks.length === 0) {
           taskListHtml = '<span style="color: #10B981; font-style: italic;">ללא משימות 🎉</span>';
@@ -351,7 +442,7 @@ export default function TaskAllocationScreen({
 
           <div class="summary">
             <div class="summary-item"><strong>תאריך יצירה:</strong> ${new Date().toLocaleDateString('he-IL')}</div>
-            <div class="summary-item"><strong>סה"כ משתתפים:</strong> ${allocations.length}</div>
+            <div class="summary-item"><strong>סה"כ משתתפים:</strong> ${displayedAllocations.length}</div>
             <div class="summary-item"><strong>סה"כ משימות:</strong> ${tasks.length}</div>
           </div>
 
@@ -586,7 +677,7 @@ export default function TaskAllocationScreen({
           </TouchableOpacity>
 
           {/* Section 3: Results */}
-          {showCalculation && allocations.length > 0 && (
+          {showCalculation && displayedAllocations.length > 0 && (
             <View style={styles.resultsCard}>
               <Text style={styles.resultsTitle}>תוצאת החלוקה האופטימלית 📊</Text>
 
@@ -598,8 +689,51 @@ export default function TaskAllocationScreen({
                 </View>
               )}
 
+              {/* Carousel Navigation (only for Recurring mode) */}
+              {allocationType === 'recurring' && taskPackages.length > 0 && (
+                <View style={styles.carouselCard}>
+                  <View style={styles.carouselHeaderRow}>
+                    <TouchableOpacity
+                      onPress={handlePrevRound}
+                      style={styles.carouselArrowButton}
+                      activeOpacity={0.7}
+                    >
+                      <NavigationIcon name="chevron-back" size={24} color="#6366F1" />
+                    </TouchableOpacity>
+
+                    <View style={styles.carouselStatusBadge}>
+                      <Text style={styles.carouselStatusText}>
+                        {viewOffset === 0
+                          ? 'סבב פעיל נוכחי 🟢'
+                          : viewOffset > 0
+                            ? `סבב עתידי (+${viewOffset}) 🔮`
+                            : `סבב עבר (${viewOffset}) ⏳`}
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={handleNextRound}
+                      style={styles.carouselArrowButton}
+                      activeOpacity={0.7}
+                    >
+                      <NavigationIcon name="chevron-forward" size={24} color="#6366F1" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Advance Turn Button */}
+                  <TouchableOpacity
+                    style={styles.advanceTurnButton}
+                    onPress={handleAdvanceRotation}
+                    activeOpacity={0.8}
+                  >
+                    <NavigationIcon name="refresh-outline" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                    <Text style={styles.advanceTurnButtonText}>קדם תור סבב 🔄</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               <View style={styles.allocationsContainer}>
-                {allocations.map(alloc => (
+                {displayedAllocations.map(alloc => (
                   <View key={alloc.participantId} style={styles.allocationRow}>
                     <View style={styles.allocHeader}>
                       <Text style={styles.allocName}>{alloc.name}</Text>
@@ -1273,5 +1407,65 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: '#FFFFFF',
+  },
+  carouselCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  carouselHeaderRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 12,
+  },
+  carouselArrowButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1.5,
+  },
+  carouselStatusBadge: {
+    backgroundColor: '#EEF2FF',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  carouselStatusText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#4338CA',
+    textAlign: 'center',
+  },
+  advanceTurnButton: {
+    flexDirection: 'row-reverse',
+    backgroundColor: '#6366F1',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  advanceTurnButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
   }
 });
