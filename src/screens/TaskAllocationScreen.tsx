@@ -698,7 +698,7 @@ export default function TaskAllocationScreen({
                       style={styles.carouselArrowButton}
                       activeOpacity={0.7}
                     >
-                      <NavigationIcon name="chevron-back" size={24} color="#6366F1" />
+                      <NavigationIcon name="chevron-forward" size={24} color="#6366F1" />
                     </TouchableOpacity>
 
                     <View style={styles.carouselStatusBadge}>
@@ -716,7 +716,7 @@ export default function TaskAllocationScreen({
                       style={styles.carouselArrowButton}
                       activeOpacity={0.7}
                     >
-                      <NavigationIcon name="chevron-forward" size={24} color="#6366F1" />
+                      <NavigationIcon name="chevron-back" size={24} color="#6366F1" />
                     </TouchableOpacity>
                   </View>
 
