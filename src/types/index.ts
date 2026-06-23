@@ -62,6 +62,7 @@ export interface GroupsState {
   shuffledSequence: string[]; // Flat 1D array of randomly shuffled participant IDs
   allocationType: 'numberOfGroups' | 'countPerGroup'; // Mode selected by user
   targetValue: number; // The target integer input (e.g., 3 groups or 3 kids per group)
+  groupLeaders?: string[]; // Array of leader participant IDs corresponding to group indexes
   updatedAt: Timestamp | Date;
 }
 

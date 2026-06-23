@@ -23,7 +23,8 @@ interface GroupsScreenProps {
   onUpdateGroups: (
     shuffledSequence: string[],
     allocationType: 'numberOfGroups' | 'countPerGroup',
-    targetValue: number
+    targetValue: number,
+    groupLeaders?: string[]
   ) => Promise<void>;
   absentParticipantIds: string[];
   setAbsentParticipantIds: (ids: string[]) => void;
@@ -153,6 +154,33 @@ const GroupsScreen: React.FC<GroupsScreenProps> = ({
     await onUpdateGroups(shuffled, allocationType, targetValue);
   };
 
+  // Handle random selection of a group leader for each group
+  const handleDrawLeaders = async () => {
+    if (activeGroups.length === 0) {
+      Alert.alert("שגיאה", "יש לחלק את המשתתפים לקבוצות תחילה.");
+      return;
+    }
+
+    const leaders: string[] = [];
+    activeGroups.forEach((group) => {
+      if (group.length > 0) {
+        const randomIndex = Math.floor(Math.random() * group.length);
+        leaders.push(group[randomIndex].id);
+      } else {
+        leaders.push('');
+      }
+    });
+
+    if (groupsState) {
+      await onUpdateGroups(
+        synchronizedSequence,
+        groupsState.allocationType,
+        groupsState.targetValue,
+        leaders
+      );
+    }
+  };
+
   const participantsMap = useMemo(() => new Map(participants.map(p => [p.id, p])), [participants]);
 
   const getHebrewGroupComparison = (val: number) => {
@@ -279,8 +307,10 @@ const GroupsScreen: React.FC<GroupsScreenProps> = ({
       activeGroups.forEach((group, gIdx) => {
         message += `*קבוצה ${gIdx + 1}:* (${group.length} משתתפים)\n`;
         group.forEach((p, pIdx) => {
+          const isLeader = groupsState?.groupLeaders && groupsState.groupLeaders[gIdx] === p.id;
           const name = `${p.firstName}${p.lastName ? ' ' + p.lastName : ''}${p.nickname ? ` (${p.nickname})` : ''}`;
-          message += `  ${pIdx + 1}. ${name}\n`;
+          const leaderSuffix = isLeader ? ' 👑 (ראש קבוצה)' : '';
+          message += `  ${pIdx + 1}. ${name}${leaderSuffix}\n`;
         });
         message += `\n`;
       });
@@ -542,6 +572,16 @@ const GroupsScreen: React.FC<GroupsScreenProps> = ({
             {hasDraw && activeGroups.length > 0 && (
               <View style={styles.resultsContainer}>
                 <Text style={styles.resultsSubtitle}>תוצאות החלוקה הנוכחית 📋</Text>
+
+                {/* Draw Group Leaders Button */}
+                <TouchableOpacity
+                  style={styles.drawLeadersButton}
+                  onPress={handleDrawLeaders}
+                  activeOpacity={0.8}
+                >
+                  <NavigationIcon name="crown" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
+                  <Text style={styles.drawLeadersButtonText}>הגרל ראש קבוצה 👑</Text>
+                </TouchableOpacity>
                 
                 {activeGroups.map((group, gIdx) => (
                   <View key={gIdx} style={styles.groupCard}>
@@ -552,10 +592,21 @@ const GroupsScreen: React.FC<GroupsScreenProps> = ({
                     <View style={styles.groupListContainer}>
                       {group.map((p, pIdx) => {
                         const name = `${p.firstName}${p.lastName ? ' ' + p.lastName : ''}${p.nickname ? ` (${p.nickname})` : ''}`;
+                        const isLeader = groupsState?.groupLeaders && groupsState.groupLeaders[gIdx] === p.id;
                         return (
-                          <View key={p.id} style={styles.memberRow}>
-                            <Text style={styles.memberName} numberOfLines={1}>{name}</Text>
-                            <Text style={styles.memberNumber}>{pIdx + 1}.</Text>
+                          <View key={p.id} style={[styles.memberRow, isLeader && styles.leaderMemberRow]}>
+                            <View style={styles.memberNameContainer}>
+                              {isLeader && (
+                                <View style={styles.leaderBadge}>
+                                  <NavigationIcon name="crown" size={14} color="#F59E0B" style={{ marginLeft: 4 }} />
+                                  <Text style={styles.leaderText}>ראש קבוצה</Text>
+                                </View>
+                              )}
+                              <Text style={[styles.memberName, isLeader && styles.leaderName]} numberOfLines={1}>
+                                {name}
+                              </Text>
+                            </View>
+                            <Text style={[styles.memberNumber, isLeader && styles.leaderNumber]}>{pIdx + 1}.</Text>
                           </View>
                         );
                       })}
@@ -1159,6 +1210,57 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
+  },
+  drawLeadersButton: {
+    height: 48,
+    backgroundColor: '#8B5CF6', // Purple
+    borderRadius: 14,
+    flexDirection: 'row-reverse',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+    width: '100%',
+  },
+  drawLeadersButtonText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  memberNameContainer: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    flex: 1,
+  },
+  leaderBadge: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginRight: 8,
+    borderWidth: 0.5,
+    borderColor: '#F59E0B',
+  },
+  leaderText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#D97706',
+  },
+  leaderName: {
+    color: '#B45309',
+    fontWeight: '900',
+  },
+  leaderNumber: {
+    color: '#F59E0B',
+  },
+  leaderMemberRow: {
+    backgroundColor: '#FFFBEB',
   },
 });
 

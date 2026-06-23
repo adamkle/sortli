@@ -1235,7 +1235,8 @@ export default function App() {
   const handleUpdateGroups = async (
     shuffledSequence: string[],
     allocationType: 'numberOfGroups' | 'countPerGroup',
-    targetValue: number
+    targetValue: number,
+    groupLeaders?: string[]
   ) => {
     await handleCoreActionClick();
     if (!activeList) return;
@@ -1244,6 +1245,7 @@ export default function App() {
       shuffledSequence,
       allocationType,
       targetValue,
+      groupLeaders: groupLeaders || [],
       updatedAt: new Date(),
     };
 

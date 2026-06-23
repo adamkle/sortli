@@ -189,6 +189,9 @@ const NavigationIcon: React.FC<NavigationIconProps> = ({ name, size = 24, color 
     case 'play':
       path = 'M8 5v14l11-7z';
       break;
+    case 'crown':
+      path = 'M5 16h14a1 1 0 001-.76l2-9a1 1 0 00-1.56-1l-4.24 3.18L12.7 4.1a1 1 0 00-1.4 0L7.8 8.42 3.56 5.24a1 1 0 00-1.56 1l2 9a1 1 0 001 .76zM19 18H5a1 1 0 000 2h14a1 1 0 000-2z';
+      break;
     default:
       path = '';
   }
