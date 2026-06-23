@@ -100,15 +100,9 @@ export default function SplitExpensesScreen({
     );
   }, [activeParticipants, searchQuery]);
 
-  // Load existing payment when participant is selected
+  // Reset input amount field whenever selected participant changes
   useEffect(() => {
-    if (selectedParticipantId) {
-      const existingPayment = payments[selectedParticipantId] || 0;
-      setAmountText(existingPayment > 0 ? existingPayment.toString() : '');
-    } else {
-      setAmountText('');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setAmountText('');
   }, [selectedParticipantId]);
 
   // Toggle participant exclusion from calculation
