@@ -253,6 +253,12 @@ const GroupsScreen: React.FC<GroupsScreenProps> = ({
     );
   }, [hasDraw, groupsState, synchronizedSequence, absentParticipantIds, participantsMap]);
 
+  const hasLeaders = useMemo(() => {
+    return !!(groupsState?.groupLeaders && 
+      groupsState.groupLeaders.length > 0 && 
+      groupsState.groupLeaders.some(id => id !== ''));
+  }, [groupsState?.groupLeaders]);
+
   // Live preview calculations
   const previewGroupsInfo = useMemo(() => {
     if (presentN === 0) return { count: 0, minSize: 0, maxSize: 0 };
@@ -575,12 +581,20 @@ const GroupsScreen: React.FC<GroupsScreenProps> = ({
 
                 {/* Draw Group Leaders Button */}
                 <TouchableOpacity
-                  style={styles.drawLeadersButton}
-                  onPress={handleDrawLeaders}
-                  activeOpacity={0.8}
+                  style={[styles.drawLeadersButton, hasLeaders && styles.drawLeadersButtonDisabled]}
+                  onPress={hasLeaders ? undefined : handleDrawLeaders}
+                  activeOpacity={hasLeaders ? 1 : 0.8}
+                  disabled={hasLeaders}
                 >
-                  <NavigationIcon name="crown" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
-                  <Text style={styles.drawLeadersButtonText}>הגרל ראש קבוצה 👑</Text>
+                  <NavigationIcon 
+                    name="crown" 
+                    size={20} 
+                    color={hasLeaders ? "#94A3B8" : "#FFFFFF"} 
+                    style={{ marginLeft: 8 }} 
+                  />
+                  <Text style={[styles.drawLeadersButtonText, hasLeaders && styles.drawLeadersButtonTextDisabled]}>
+                    {hasLeaders ? 'ראשי קבוצות נקבעו 👑' : 'הגרל ראש קבוצה 👑'}
+                  </Text>
                 </TouchableOpacity>
                 
                 {activeGroups.map((group, gIdx) => (
@@ -597,10 +611,7 @@ const GroupsScreen: React.FC<GroupsScreenProps> = ({
                           <View key={p.id} style={[styles.memberRow, isLeader && styles.leaderMemberRow]}>
                             <View style={styles.memberNameContainer}>
                               {isLeader && (
-                                <View style={styles.leaderBadge}>
-                                  <NavigationIcon name="crown" size={14} color="#F59E0B" style={{ marginLeft: 4 }} />
-                                  <Text style={styles.leaderText}>ראש קבוצה</Text>
-                                </View>
+                                <NavigationIcon name="crown" size={16} color="#F59E0B" style={{ marginLeft: 6 }} />
                               )}
                               <Text style={[styles.memberName, isLeader && styles.leaderName]} numberOfLines={1}>
                                 {name}
@@ -1230,6 +1241,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: '#FFFFFF',
+  },
+  drawLeadersButtonDisabled: {
+    backgroundColor: '#E2E8F0',
+    borderColor: '#CBD5E1',
+    borderWidth: 1,
+    shadowColor: 'transparent',
+    elevation: 0,
+  },
+  drawLeadersButtonTextDisabled: {
+    color: '#94A3B8',
   },
   memberNameContainer: {
     flexDirection: 'row-reverse',
