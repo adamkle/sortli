@@ -135,23 +135,51 @@ export default function SplitExpensesScreen({
     await onUpdateExpenses(newPayments, newExcluded);
   };
 
-  // Handle saving the payment amount
-  const handleSavePayment = async () => {
+  // Handle adding payment amount
+  const handleAddPayment = async () => {
     if (!selectedParticipantId) return;
     
     const amount = evaluateExpression(amountText);
-    if (amount < 0) {
-      Alert.alert('שגיאה', 'נא להזין סכום תקין הגדול או שווה ל-0.');
+    if (amount <= 0) {
+      Alert.alert('שגיאה', 'נא להזין סכום תקין הגדול מ-0.');
       return;
     }
 
+    const currentAmount = payments[selectedParticipantId] || 0;
     const newPayments = {
       ...payments,
-      [selectedParticipantId]: amount
+      [selectedParticipantId]: currentAmount + amount
     };
 
     setPayments(newPayments);
-    setSelectedParticipantId(null);
+    setAmountText('');
+    setShowCalculation(false);
+    Keyboard.dismiss();
+
+    await onUpdateExpenses(newPayments, excludedParticipantIds);
+  };
+
+  // Handle subtracting payment amount
+  const handleSubtractPayment = async () => {
+    if (!selectedParticipantId) return;
+    
+    const amount = evaluateExpression(amountText);
+    if (amount <= 0) {
+      Alert.alert('שגיאה', 'נא להזין סכום תקין הגדול מ-0.');
+      return;
+    }
+
+    const currentAmount = payments[selectedParticipantId] || 0;
+    const newAmount = Math.max(0, currentAmount - amount);
+    
+    const newPayments = { ...payments };
+    if (newAmount === 0) {
+      delete newPayments[selectedParticipantId];
+    } else {
+      newPayments[selectedParticipantId] = newAmount;
+    }
+
+    setPayments(newPayments);
     setAmountText('');
     setShowCalculation(false);
     Keyboard.dismiss();
@@ -341,6 +369,11 @@ export default function SplitExpensesScreen({
                     <Text style={styles.inputLabel}>
                       כמה שילם {listParticipants.find(p => p.id === selectedParticipantId)?.name}?
                     </Text>
+
+                    <View style={styles.currentAmountRow}>
+                      <Text style={styles.currentAmountLabel}>סכום מצטבר נוכחי:</Text>
+                      <Text style={styles.currentAmountValue}>₪{(payments[selectedParticipantId] || 0).toFixed(2)}</Text>
+                    </View>
                     
                     <View style={styles.inputRow}>
                       <View style={styles.inputContainer}>
@@ -361,9 +394,16 @@ export default function SplitExpensesScreen({
                         />
                       </View>
                       
-                      <TouchableOpacity style={styles.saveButton} onPress={handleSavePayment}>
-                        <Text style={styles.saveButtonText}>שמור</Text>
-                      </TouchableOpacity>
+                      <View style={styles.actionButtonsContainer}>
+                        {(payments[selectedParticipantId] || 0) > 0 && (
+                          <TouchableOpacity style={[styles.actionBtn, styles.minusBtn]} onPress={handleSubtractPayment}>
+                            <Text style={styles.actionBtnText}>-</Text>
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity style={[styles.actionBtn, styles.plusBtn]} onPress={handleAddPayment}>
+                          <Text style={styles.actionBtnText}>+</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 )}
@@ -374,7 +414,12 @@ export default function SplitExpensesScreen({
                 <View style={styles.card}>
                   <Text style={styles.cardTitle}>הוצאות שהוזנו בפועל</Text>
                   {enteredExpenses.map((exp) => (
-                    <View key={exp.id} style={styles.expenseRow}>
+                    <TouchableOpacity 
+                      key={exp.id} 
+                      style={styles.expenseRow} 
+                      onPress={() => setSelectedParticipantId(exp.id)}
+                      activeOpacity={0.7}
+                    >
                       <Text style={styles.expenseName}>{exp.name}</Text>
                       <View style={styles.expenseAmountContainer}>
                         <Text style={styles.expenseAmount}>₪{exp.amount.toFixed(2)}</Text>
@@ -385,7 +430,7 @@ export default function SplitExpensesScreen({
                           <NavigationIcon name="trash-outline" size={18} color="#EF4444" />
                         </TouchableOpacity>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   ))}
                 </View>
               )}
@@ -760,6 +805,52 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  currentAmountRow: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  currentAmountLabel: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  currentAmountValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1E1B4B',
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  actionBtn: {
+    height: 48,
+    width: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 6,
+  },
+  plusBtn: {
+    backgroundColor: '#10B981',
+  },
+  minusBtn: {
+    backgroundColor: '#EF4444',
+  },
+  actionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 22,
     fontWeight: 'bold',
   },
   expenseRow: {
