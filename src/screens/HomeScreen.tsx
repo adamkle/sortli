@@ -252,7 +252,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     }
   };
 
-  const showAds = activeProfileType === 'private' && (userTier === 'guest' || userTier === 'registered') && !userProfile?.isPremium;
+  const isPremiumActive = (() => {
+    if (!userProfile || !userProfile.premiumExpiryDate) return false;
+    const expiryVal = userProfile.premiumExpiryDate;
+    const expiryDate = (expiryVal && typeof expiryVal.toDate === 'function')
+      ? expiryVal.toDate()
+      : new Date(expiryVal);
+    return new Date() < expiryDate;
+  })();
+
+  const showAds = activeProfileType === 'private' && (userTier === 'guest' || userTier === 'registered') && !isPremiumActive;
 
   return (
     <SafeAreaView style={styles.safeArea}>

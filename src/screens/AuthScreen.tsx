@@ -108,7 +108,15 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack, onLoginSuccess }) => {
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
           const userData = userDocSnap.data();
-          tier = userData.tier || 'registered';
+          if (userData.premiumExpiryDate) {
+            const expiryVal = userData.premiumExpiryDate;
+            const expiryDate = (expiryVal && typeof expiryVal.toDate === 'function')
+              ? expiryVal.toDate()
+              : new Date(expiryVal);
+            if (new Date() < expiryDate) {
+              tier = 'lite';
+            }
+          }
         } else {
           // User logged in but profile document doesn't exist yet, go to Step 2
           setFirstName('');
@@ -306,12 +314,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack, onLoginSuccess }) => {
             lastName: trimmedLastName,
             email: user.email || '',
             phone: trimmedPhone,
-            tier: 'registered' as UserTier,
             institutionCodes: [codeUpper],
             createdAt: new Date(),
-            listsCount: 0,
             hearts: 3,
-            isPremium: false,
             premiumStartDate: null,
             premiumExpiryDate: null,
           };
@@ -355,12 +360,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack, onLoginSuccess }) => {
       lastName: trimmedLastName,
       email: user.email || '',
       phone: trimmedPhone,
-      tier: 'registered' as UserTier,
       institutionCodes: [],
       createdAt: new Date(),
-      listsCount: 0,
       hearts: 3,
-      isPremium: false,
       premiumStartDate: null,
       premiumExpiryDate: null,
     };

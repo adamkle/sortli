@@ -9,13 +9,14 @@ export interface UserProfile {
   firstName: string;
   lastName: string;
   phone: string;
-  tier: UserTier;
+  tier?: UserTier;
   institutionCodes: string[];
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;
   isPremium?: boolean;
   premiumStartDate?: Timestamp | Date | null;
   premiumExpiryDate?: Timestamp | Date | null;
+  admin?: boolean;
 }
 
 export interface Institution {

@@ -35,10 +35,11 @@ import GiftExchangeScreen from './src/screens/GiftExchangeScreen';
 import RandomOrderScreen from './src/screens/RandomOrderScreen';
 import SplitExpensesScreen from './src/screens/SplitExpensesScreen';
 import TaskAllocationScreen from './src/screens/TaskAllocationScreen';
+import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
 import { SimulatedRewardedAd } from './src/utils/ads';
 import { auth, db } from './src/config/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, arrayUnion, arrayRemove, deleteField } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, arrayUnion, arrayRemove, deleteField, increment, serverTimestamp } from 'firebase/firestore';
 import { Participant, UserTier, SharedList, Task, ParticipantAllocation } from './src/types';
 import { generateFairRotationSequence } from './src/utils/queueEngine';
 
@@ -100,11 +101,15 @@ Notifications.setNotificationHandler({
 });
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<'Home' | 'ListManagement' | 'Auth' | 'ActiveQueue' | 'SecretDraw' | 'RandomChooser' | 'Groups' | 'Gifts' | 'RandomOrder' | 'SplitExpenses' | 'TaskAllocation'>('Home');
+  const [currentScreen, setCurrentScreen] = useState<'Home' | 'ListManagement' | 'Auth' | 'ActiveQueue' | 'SecretDraw' | 'RandomChooser' | 'Groups' | 'Gifts' | 'RandomOrder' | 'SplitExpenses' | 'TaskAllocation' | 'AdminDashboard'>('Home');
   const [previousScreen, setPreviousScreen] = useState<'Home' | 'ListManagement' | 'ActiveQueue'>('Home');
   const [userTier, setUserTier] = useState<UserTier>('guest');
   const [isInitialSync, setIsInitialSync] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+
+  // Promo code states
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [isApplyingPromoCode, setIsApplyingPromoCode] = useState(false);
 
   // Standalone list management state
   const [lists, setLists] = useState<SharedList[]>([]);
@@ -431,11 +436,18 @@ export default function App() {
           if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
             setUserProfile(userData);
-            const fetchedTier = (userData.tier || 'registered') as UserTier;
-            setUserTier(fetchedTier);
-            if (fetchedTier !== 'guest') {
-              setHearts(userData.hearts !== undefined ? userData.hearts : 3);
+            let fetchedTier: UserTier = 'registered';
+            if (userData.premiumExpiryDate) {
+              const expiryVal = userData.premiumExpiryDate;
+              const expiryDate = (expiryVal && typeof expiryVal.toDate === 'function')
+                ? expiryVal.toDate()
+                : new Date(expiryVal);
+              if (new Date() < expiryDate) {
+                fetchedTier = 'lite';
+              }
             }
+            setUserTier(fetchedTier);
+            setHearts(userData.hearts !== undefined ? userData.hearts : 3);
             try {
               await AsyncStorage.setItem(`hasSeenOnboarding_${user.uid}`, 'true');
             } catch (e) {
@@ -473,31 +485,49 @@ export default function App() {
     };
   }, []);
 
+  // Synchronize userTier with premiumExpiryDate of userProfile
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) {
+      setUserTier('guest');
+    } else if (userProfile) {
+      let resolvedTier: UserTier = 'registered';
+      if (userProfile.premiumExpiryDate) {
+        const expiryVal = userProfile.premiumExpiryDate;
+        const expiryDate = (expiryVal && typeof expiryVal.toDate === 'function')
+          ? expiryVal.toDate()
+          : new Date(expiryVal);
+        if (new Date() < expiryDate) {
+          resolvedTier = 'lite';
+        }
+      }
+      setUserTier(resolvedTier);
+    }
+  }, [userProfile]);
+
   // Check premium expiry when app state changes, when screen changes, or on initial load
   const checkPremiumExpiry = async () => {
     const user = auth.currentUser;
     if (!user || !userProfile) return;
 
-    if (userProfile.isPremium) {
-      const expiryVal = userProfile.premiumExpiryDate;
+    const expiryVal = userProfile.premiumExpiryDate;
+    if (expiryVal) {
       const expiryDate = (expiryVal && typeof expiryVal.toDate === 'function')
         ? expiryVal.toDate()
-        : (expiryVal ? new Date(expiryVal) : null);
+        : new Date(expiryVal);
 
-      if (expiryDate && new Date() > expiryDate) {
+      if (new Date() > expiryDate) {
         try {
           const userDocRef = doc(db, 'users', user.uid);
           const updateData = {
-            isPremium: false,
-            tier: 'registered' as UserTier,
+            premiumExpiryDate: null,
             updatedAt: new Date(),
           };
           await updateDoc(userDocRef, updateData);
-          setUserTier('registered');
           setUserProfile((prev: any) => prev ? { ...prev, ...updateData } : null);
           Alert.alert(
             "פג תוקף המנוי 🕒",
-            "מנוי הבדיקה שלכם ל-24 שעות פג. הפרסומות ומגבלות הלבבות הוחזרו.",
+            "מנוי הבדיקה שלכם פג. הפרסומות ומגבלות הלבבות הוחזרו.",
             [
               {
                 text: "סגור",
@@ -519,7 +549,7 @@ export default function App() {
   useEffect(() => {
     // Check on startup / load / profile sync
     checkPremiumExpiry();
-  }, [userProfile?.isPremium, userProfile?.premiumExpiryDate]);
+  }, [userProfile?.premiumExpiryDate]);
 
   useEffect(() => {
     // Check when currentScreen changes to 'Home'
@@ -558,7 +588,14 @@ export default function App() {
   };
 
   const handleNavigateWithPremiumCheck = (screen: 'RandomChooser' | 'SplitExpenses' | 'TaskAllocation') => {
-    const isPremium = userProfile?.isPremium === true;
+    let isPremium = false;
+    if (userProfile && userProfile.premiumExpiryDate) {
+      const expiryVal = userProfile.premiumExpiryDate;
+      const expiryDate = (expiryVal && typeof expiryVal.toDate === 'function')
+        ? expiryVal.toDate()
+        : new Date(expiryVal);
+      isPremium = new Date() < expiryDate;
+    }
     const isTemporarilyUnlocked = unlockedFeaturesThisSession.includes(screen);
 
     if (isPremium || isTemporarilyUnlocked) {
@@ -594,21 +631,16 @@ export default function App() {
       try {
         const user = auth.currentUser;
         if (user) {
-          const newTier: UserTier = 'lite';
           const userDocRef = doc(db, 'users', user.uid);
           
           const subscriptionData = {
-            isPremium: true,
             premiumStartDate: new Date(),
             premiumExpiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours validity
-            tier: newTier,
-            subscriptionType: selectedSubPlan,
             updatedAt: new Date(),
           };
           
           await updateDoc(userDocRef, subscriptionData);
           
-          setUserTier(newTier);
           if (userProfile) {
             setUserProfile({
               ...userProfile,
@@ -629,6 +661,71 @@ export default function App() {
         setIsPaymentModalOpen(false);
       }
     }, 2500);
+  };
+
+  const handleApplyPromoCode = async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      Alert.alert("התחברות נדרשת", "על מנת להשתמש בקוד הטבה, יש להירשם או להתחבר למערכת תחילה.");
+      return;
+    }
+
+    const trimmedCode = promoCodeInput.trim();
+    if (!trimmedCode) {
+      Alert.alert("קוד חסר", "אנא הזן קוד הטבה.");
+      return;
+    }
+
+    setIsApplyingPromoCode(true);
+    try {
+      const promoDocRef = doc(db, 'promoCodes', trimmedCode);
+      const promoDocSnap = await getDoc(promoDocRef);
+
+      if (!promoDocSnap.exists()) {
+        Alert.alert("קוד לא תקין", "קוד ההטבה שהוזן אינו קיים במערכת.");
+        setIsApplyingPromoCode(false);
+        return;
+      }
+
+      // Calculate new expiry: current time + 30 days
+      const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
+      const expiryDate = new Date(Date.now() + thirtyDaysInMs);
+
+      const userDocRef = doc(db, 'users', user.uid);
+      
+      const userUpdateData = {
+        isPremium: true,
+        premiumStartDate: serverTimestamp(),
+        premiumExpiryDate: expiryDate,
+        updatedAt: serverTimestamp(),
+      };
+
+      await updateDoc(userDocRef, userUpdateData);
+
+      const promoData = promoDocSnap.data();
+      const codeUpdateData: any = {
+        usageCount: increment(1),
+        usedBy: arrayUnion(user.uid),
+      };
+
+      if (!promoData?.createdBy) {
+        const fullName = `${userProfile?.firstName || ''} ${userProfile?.lastName || ''}`.trim();
+        codeUpdateData.createdBy = fullName || 'משתמש לא ידוע';
+      }
+
+      await updateDoc(promoDocRef, codeUpdateData);
+
+      setUserProfile((prev: any) => prev ? { ...prev, ...userUpdateData } : null);
+
+      Alert.alert("הצלחה! 🎉", "קוד ההטבה הופעל בהצלחה. קיבלתם חודש מנוי Premium מתנה!");
+      setPromoCodeInput('');
+      setIsSubscriptionModalOpen(false);
+    } catch (e: any) {
+      console.error("Failed to apply promo code:", e);
+      Alert.alert("שגיאה", "שגיאה במהלך הפעלת קוד ההטבה: " + e.message);
+    } finally {
+      setIsApplyingPromoCode(false);
+    }
   };
 
   // Real-time Lists Listener: Runs when userProfile UID changes (covers login, signup, and logout)
@@ -1741,6 +1838,14 @@ export default function App() {
       );
     }
 
+    if (currentScreen === 'AdminDashboard') {
+      return (
+        <AdminDashboardScreen
+          onBack={() => setCurrentScreen('Home')}
+        />
+      );
+    }
+
     return (
       <HomeScreen
         userTier={userTier}
@@ -1950,6 +2055,19 @@ export default function App() {
 
                 {userTier !== 'guest' && (
                   <>
+                    {userProfile?.admin === true && (
+                      <TouchableOpacity
+                        style={styles.drawerItem}
+                        onPress={() => {
+                          setIsSidebarOpen(false);
+                          setCurrentScreen('AdminDashboard');
+                        }}
+                      >
+                        <Ionicons name="shield-half-outline" size={18} color="#D97706" style={{ marginLeft: 8 }} />
+                        <Text style={[styles.drawerItemText, { color: '#D97706', fontWeight: '800' }]}>לוח בקרה מנהל (Admin) 🛡️</Text>
+                      </TouchableOpacity>
+                    )}
+
                     <TouchableOpacity
                       style={styles.drawerItem}
                       onPress={() => {
@@ -2268,6 +2386,35 @@ export default function App() {
             >
               <Text style={styles.subModalBuyButtonText}>רכוש מנוי עכשיו 🚀</Text>
             </TouchableOpacity>
+
+            {/* Promo Code Input Section */}
+            {userTier !== 'guest' && (
+              <View style={styles.promoCodeContainer}>
+                <Text style={styles.promoCodeTitle}>יש לך קוד הטבה? 🎁</Text>
+                <View style={styles.promoCodeInputRow}>
+                  <TouchableOpacity
+                    style={[styles.promoCodeApplyBtn, isApplyingPromoCode && styles.disabledButton]}
+                    onPress={handleApplyPromoCode}
+                    disabled={isApplyingPromoCode}
+                  >
+                    {isApplyingPromoCode ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <Text style={styles.promoCodeApplyBtnText}>הפעל קוד</Text>
+                    )}
+                  </TouchableOpacity>
+                  <TextInput
+                    style={styles.promoCodeInput}
+                    value={promoCodeInput}
+                    onChangeText={setPromoCodeInput}
+                    placeholder="הזן קוד הטבה..."
+                    placeholderTextColor="#94A3B8"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+              </View>
+            )}
 
             {/* Close Button */}
             <TouchableOpacity
@@ -3152,5 +3299,53 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 11,
     marginRight: 6,
+  },
+  promoCodeContainer: {
+    width: '100%',
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 12,
+  },
+  promoCodeTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 8,
+    textAlign: 'right',
+  },
+  promoCodeInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  promoCodeInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: '#0F172A',
+    backgroundColor: '#F8FAFC',
+    textAlign: 'right',
+    marginLeft: 8,
+  },
+  promoCodeApplyBtn: {
+    backgroundColor: '#6366F1',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promoCodeApplyBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });
