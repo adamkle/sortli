@@ -195,6 +195,29 @@ export default function SplitExpensesScreen({
     await onUpdateExpenses(newPayments, excludedParticipantIds);
   };
 
+  // Reset all payments to 0 and clear inputs
+  const handleResetExpenses = () => {
+    Alert.alert(
+      'איפוס סכומים',
+      'האם אתה בטוח שברצונך לאפס את כל הסכומים שהוזנו ולהתחיל סבב חדש?',
+      [
+        { text: 'ביטול', style: 'cancel' },
+        {
+          text: 'אפס סכומים',
+          style: 'destructive',
+          onPress: async () => {
+            setPayments({});
+            setAmountText('');
+            setSelectedParticipantId(null);
+            setShowCalculation(false);
+            await onUpdateExpenses({}, excludedParticipantIds);
+          }
+        }
+      ],
+      { cancelable: true }
+    );
+  };
+
   // Map entered expenses for active participants
   const enteredExpenses = useMemo(() => {
     return activeParticipants
@@ -409,7 +432,13 @@ export default function SplitExpensesScreen({
               {/* Entered Expenses Section */}
               {enteredExpenses.length > 0 && (
                 <View style={styles.card}>
-                  <Text style={styles.cardTitle}>הוצאות שהוזנו בפועל</Text>
+                  <View style={styles.cardHeaderRow}>
+                    <Text style={styles.cardTitle}>הוצאות שהוזנו בפועל</Text>
+                    <TouchableOpacity onPress={handleResetExpenses} activeOpacity={0.7} style={styles.resetBtnContainer}>
+                      <NavigationIcon name="refresh-outline" size={16} color="#8B5CF6" style={{ marginLeft: 4 }} />
+                      <Text style={styles.resetTextLinkText}>התחל סבב חדש</Text>
+                    </TouchableOpacity>
+                  </View>
                   {enteredExpenses.map((exp) => (
                     <TouchableOpacity 
                       key={exp.id} 
@@ -1182,5 +1211,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
+  },
+  resetTextLinkText: {
+    color: '#8B5CF6',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'left',
+  },
+  resetBtnContainer: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
   }
 });
