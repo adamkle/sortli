@@ -245,6 +245,77 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
     runSlotAnimation(0, 35);
   };
 
+  const handleReRoll = async () => {
+    if (presentN === 0) {
+      Alert.alert("שגיאה", "אין משתתפים נוכחים לביצוע ההגרלה.");
+      return;
+    }
+    if (isDrawing) return;
+    if (!lastChosenId) return;
+
+    const actuallyChosen = chosenIds.filter(id => id !== lastChosenId);
+    const eligiblePool = presentParticipants.filter(p => !actuallyChosen.includes(p.id));
+    const rerollPool = eligiblePool.filter(p => p.id !== lastChosenId);
+
+    let pool = rerollPool;
+    let nextChosenIds = actuallyChosen;
+
+    if (pool.length === 0) {
+      nextChosenIds = [];
+      pool = presentParticipants;
+      await onUpdateChooser([], null);
+    }
+
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    const selected = pool[randomIndex];
+    const finalChosenIds = [...nextChosenIds, selected.id];
+
+    if (pool.length === 1) {
+      scaleAnim.setValue(0.5);
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 4,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+
+      await onUpdateChooser(finalChosenIds, selected.id);
+      return;
+    }
+
+    setIsDrawing(true);
+    const TOTAL_STEPS = 17;
+    const runSlotAnimation = (step: number, currentDelay: number) => {
+      if (step >= TOTAL_STEPS) {
+        setDrawingName(null);
+        setIsDrawing(false);
+
+        scaleAnim.setValue(0.5);
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 4,
+          tension: 40,
+          useNativeDriver: true,
+        }).start();
+
+        onUpdateChooser(finalChosenIds, selected.id);
+        return;
+      }
+
+      const tempIndex = Math.floor(Math.random() * pool.length);
+      const tempParticipant = pool[tempIndex];
+      const tempName = `${tempParticipant.firstName}${tempParticipant.lastName ? ' ' + tempParticipant.lastName : ''}${tempParticipant.nickname ? ` (${tempParticipant.nickname})` : ''}`;
+      setDrawingName(tempName);
+
+      const nextDelay = currentDelay * 1.17;
+      setTimeout(() => {
+        runSlotAnimation(step + 1, nextDelay);
+      }, currentDelay);
+    };
+
+    runSlotAnimation(0, 35);
+  };
+
   // Reset handler
   const handleReset = async () => {
     if (chosenIds.length === 0 && lastChosenId === null) return;
@@ -432,7 +503,7 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
                 </View>
               ) : lastChosenParticipant ? (
                 <View style={styles.drawnParticipantContainer}>
-                  <Animated.View style={{ transform: [{ scale: scaleAnim }], alignItems: 'center' }}>
+                  <Animated.View style={{ transform: [{ scale: scaleAnim }], alignItems: 'center', width: '100%' }}>
                     <Text style={[styles.drawnParticipantName, styles.highlightedParticipantName]}>
                       {lastChosenParticipant.firstName} {lastChosenParticipant.lastName || ''}
                     </Text>
@@ -541,19 +612,39 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
       {/* Footer Draw Button */}
       {N > 0 && (
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.drawButton, isDrawing && { backgroundColor: '#94A3B8', shadowColor: 'transparent', elevation: 0 }]}
-            onPress={handleDraw}
-            activeOpacity={0.8}
-            disabled={isDrawing}
-          >
-            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={styles.drawButtonText}>
-                {isDrawing ? 'מגריל...' : (chosenIds.length === N ? 'התחל סבב חדש והגרל' : 'הגרל תורן הבא')}
-              </Text>
-              <NavigationIcon name="dice" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
-            </View>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row-reverse', alignItems: 'center', width: '100%', gap: 12 }}>
+            {lastChosenId !== null && (
+              <TouchableOpacity
+                style={[
+                  styles.rerollSecondaryButton,
+                  isDrawing && styles.disabledRerollButton
+                ]}
+                onPress={handleReRoll}
+                activeOpacity={0.8}
+                disabled={isDrawing}
+              >
+                <Text style={styles.rerollSecondaryButtonText}>החלף מוגרל 🔄</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.drawButton,
+                isDrawing && { backgroundColor: '#94A3B8', shadowColor: 'transparent', elevation: 0 },
+                { flex: 1 }
+              ]}
+              onPress={handleDraw}
+              activeOpacity={0.8}
+              disabled={isDrawing}
+            >
+              <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={styles.drawButtonText}>
+                  {isDrawing ? 'מגריל...' : (chosenIds.length === N ? 'התחל סבב חדש והגרל' : 'הגרל תורן הבא')}
+                </Text>
+                <NavigationIcon name="dice" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
@@ -700,6 +791,26 @@ const styles = StyleSheet.create({
     color: '#4F46E5',
     marginTop: 4,
     textAlign: 'center',
+  },
+  rerollSecondaryButton: {
+    flex: 1,
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#4F46E5',
+    backgroundColor: '#F5F3FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rerollSecondaryButtonText: {
+    color: '#4F46E5',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  disabledRerollButton: {
+    opacity: 0.5,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
   },
   drawnPlaceholderContainer: {
     alignItems: 'center',

@@ -59,7 +59,8 @@ export default function TaskAllocationScreen({
 
   // Selector for allocation type
   const [allocationType, setAllocationType] = useState<'one-time' | 'recurring' | 'weekly'>(() => {
-    return activeList?.taskAllocationState?.allocationType || 'one-time';
+    const rawType = activeList?.taskAllocationState?.allocationType;
+    return rawType === 'weekly' ? 'one-time' : (rawType || 'one-time');
   });
 
   // Modal and attendance states
@@ -637,23 +638,6 @@ export default function TaskAllocationScreen({
                   חוזרת 🔄
                 </Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.segmentButton,
-                  allocationType === 'weekly' && styles.segmentButtonActive,
-                ]}
-                onPress={() => handleUpdateAllocationType('weekly')}
-              >
-                <Text
-                  style={[
-                    styles.segmentText,
-                    allocationType === 'weekly' && styles.segmentTextActive,
-                  ]}
-                >
-                  שבועית 📅
-                </Text>
-              </TouchableOpacity>
             </View>
           </View>
 
@@ -668,11 +652,9 @@ export default function TaskAllocationScreen({
             activeOpacity={0.8}
           >
             <Text style={styles.actionButtonText}>
-              {allocationType === 'weekly'
-                ? 'חלוקה שבועית (בקרוב) 📅'
-                : isStandardLottery
-                  ? 'בצע הגרלת משימות שוויונית 🎲'
-                  : 'חשב חלוקת משימות הוגנת 🎯'}
+              {isStandardLottery
+                ? 'בצע הגרלת משימות שוויונית 🎲'
+                : 'חשב חלוקת משימות הוגנת 🎯'}
             </Text>
           </TouchableOpacity>
 

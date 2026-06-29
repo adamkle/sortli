@@ -267,34 +267,33 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
       <View style={{ flex: 1 }}>
+        {/* Header Section */}
+        <View style={[styles.headerWrapper, { zIndex: 999 }]}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={onOpenMenu} style={styles.menuButton}>
+              <NavigationIcon name="menu" size={30} color="#1E1B4B" />
+            </TouchableOpacity>
+            <View style={styles.logoContainer}>
+              <Text style={styles.logoLetterS}>S</Text>
+              <Text style={styles.logoLettersRest}>ortli</Text>
+            </View>
+            {userTier !== 'guest' ? (
+              <TouchableOpacity onPress={onLogout} style={styles.logoutButton}>
+                <NavigationIcon name="log-out-outline" size={28} color="#EF4444" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={onNavigateToAuth} style={styles.logoutButton}>
+                <NavigationIcon name="log-in" size={28} color="#4F46E5" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
         <ScrollView 
           style={{ flex: 1 }}
           contentContainerStyle={styles.scrollContainer} 
           showsVerticalScrollIndicator={false}
-          stickyHeaderIndices={[0]}
         >
-          {/* Header Section */}
-          <View style={styles.headerWrapper}>
-            <View style={styles.header}>
-              <TouchableOpacity onPress={onOpenMenu} style={styles.menuButton}>
-                <NavigationIcon name="menu" size={30} color="#1E1B4B" />
-              </TouchableOpacity>
-              <View style={styles.logoContainer}>
-                <Text style={styles.logoLetterS}>S</Text>
-                <Text style={styles.logoLettersRest}>ortli</Text>
-              </View>
-              {userTier !== 'guest' ? (
-                <TouchableOpacity onPress={onLogout} style={styles.logoutButton}>
-                  <NavigationIcon name="log-out-outline" size={28} color="#EF4444" />
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity onPress={onNavigateToAuth} style={styles.logoutButton}>
-                  <NavigationIcon name="log-in" size={28} color="#4F46E5" />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
           <View style={styles.mainContentContainer}>
 
           {userTier === 'guest' && (
@@ -539,6 +538,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 3,
+    zIndex: 999,
   },
   header: {
     flexDirection: 'row-reverse',

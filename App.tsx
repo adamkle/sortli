@@ -2315,6 +2315,15 @@ export default function App() {
       >
         <View style={styles.subModalOverlay}>
           <View style={styles.subModalContent}>
+            {/* Close Icon Button */}
+            <TouchableOpacity
+              style={styles.subModalCloseIconBtn}
+              onPress={() => setIsSubscriptionModalOpen(false)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={24} color="#94A3B8" />
+            </TouchableOpacity>
+
             {/* Header / Icon */}
             <View style={styles.subModalHeader}>
               <Ionicons name="star" size={40} color="#FBBF24" />
@@ -2370,27 +2379,10 @@ export default function App() {
               </TouchableOpacity>
             </View>
 
-            {/* Simulated Purchase Button */}
-            <TouchableOpacity
-              style={styles.subModalBuyButton}
-              onPress={() => {
-                if (userTier === 'guest') {
-                  Alert.alert("התחברות נדרשת", "על מנת לרכוש מנוי פרימיום, יש להירשם או להתחבר למערכת תחילה.");
-                  return;
-                }
-                
-                setIsSubscriptionModalOpen(false);
-                setIsPaymentModalOpen(true);
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.subModalBuyButtonText}>רכוש מנוי עכשיו 🚀</Text>
-            </TouchableOpacity>
-
             {/* Promo Code Input Section */}
-            {userTier !== 'guest' && (
+            {userTier !== 'guest' ? (
               <View style={styles.promoCodeContainer}>
-                <Text style={styles.promoCodeTitle}>יש לך קוד הטבה? 🎁</Text>
+                <Text style={styles.promoCodeTitle}>גרסת הרצה, הכנס קוד להפעלה:</Text>
                 <View style={styles.promoCodeInputRow}>
                   <TouchableOpacity
                     style={[styles.promoCodeApplyBtn, isApplyingPromoCode && styles.disabledButton]}
@@ -2414,16 +2406,14 @@ export default function App() {
                   />
                 </View>
               </View>
+            ) : (
+              <View style={styles.promoCodeContainer}>
+                <Text style={[styles.promoCodeTitle, { textAlign: 'center', color: '#EF4444' }]}>
+                  גרסת הרצה, יש להתחבר להפעלת מנוי
+                </Text>
+              </View>
             )}
 
-            {/* Close Button */}
-            <TouchableOpacity
-              style={styles.subModalCloseButton}
-              onPress={() => setIsSubscriptionModalOpen(false)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.subModalCloseButtonText}>סגור</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -3001,6 +2991,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#4338CA',
   },
+  subModalCloseIconBtn: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    zIndex: 10,
+    padding: 4,
+  },
   subModalHeader: {
     alignItems: 'center',
     marginBottom: 16,
@@ -3302,16 +3299,16 @@ const styles = StyleSheet.create({
   },
   promoCodeContainer: {
     width: '100%',
-    marginTop: 16,
+    marginTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
-    paddingTop: 12,
+    paddingTop: 8,
   },
   promoCodeTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 8,
+    color: '#E2E8F0',
+    marginBottom: 4,
     textAlign: 'right',
   },
   promoCodeInputRow: {
