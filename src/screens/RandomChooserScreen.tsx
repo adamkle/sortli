@@ -183,9 +183,10 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
       nextChosenIds = [];
       pool = presentN > 1 ? presentParticipants.filter(p => p.id !== lastChosenId) : presentParticipants;
       
-      // Auto-reset state immediately so that givers list and progress counter reset to 0 in the UI
-      // before/during the animation of drawing the next name
-      await onUpdateChooser([], null);
+      // Only write intermediate reset state if we are going to run the slot machine animation (pool.length > 1)
+      if (pool.length > 1) {
+        await onUpdateChooser([], null);
+      }
     }
 
     const randomIndex = Math.floor(Math.random() * pool.length);
@@ -260,10 +261,20 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
     let pool = rerollPool;
     let nextChosenIds = actuallyChosen;
 
+    // Edge case: if lastChosenId was the last one left
     if (pool.length === 0) {
       nextChosenIds = [];
       pool = presentParticipants;
-      await onUpdateChooser([], null);
+      
+      // Only write intermediate reset state if we are going to run the slot machine animation (pool.length > 1)
+      if (pool.length > 1) {
+        await onUpdateChooser([], null);
+      }
+    } else {
+      // Only write intermediate rollback state if we are going to run the slot machine animation (pool.length > 1)
+      if (pool.length > 1) {
+        await onUpdateChooser(actuallyChosen, null);
+      }
     }
 
     const randomIndex = Math.floor(Math.random() * pool.length);
@@ -318,20 +329,7 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
 
   // Reset handler
   const handleReset = async () => {
-    if (chosenIds.length === 0 && lastChosenId === null) return;
-    
-    Alert.alert(
-      "איפוס הגרלה",
-      "האם אתה בטוח שברצונך לאפס את סבב הבחירה הנוכחי?",
-      [
-        { text: "ביטול", style: "cancel" },
-        { 
-          text: "כן, אפס", 
-          onPress: () => onUpdateChooser([], null),
-          style: "destructive"
-        }
-      ]
-    );
+    await onUpdateChooser([], null);
   };
 
   // Calculate progress percentage
@@ -546,10 +544,10 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
               <View style={styles.progressBarBg}>
                 <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
               </View>
-              {chosenParticipants.length === presentN && presentN > 0 && (
+              {remainingParticipants.length === 0 && presentN > 0 && (
                 <View style={styles.roundCompletedBadge}>
                   <NavigationIcon name="checkmark-done-circle" size={18} color="#10B981" />
-                  <Text style={styles.roundCompletedText}>הסבב הושלם! הבחירה הבאה תפתח סבב חדש 🎉</Text>
+                  <Text style={styles.roundCompletedText}>הסבב הושלם! לחץ למטה כדי להתחיל סבב חדש 🔄</Text>
                 </View>
               )}
             </View>
@@ -613,7 +611,7 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
       {N > 0 && (
         <View style={styles.footer}>
           <View style={{ flexDirection: 'row-reverse', alignItems: 'center', width: '100%', gap: 12 }}>
-            {lastChosenId !== null && (
+            {lastChosenId !== null && remainingParticipants.length > 0 && (
               <TouchableOpacity
                 style={[
                   styles.rerollSecondaryButton,
@@ -633,13 +631,17 @@ const RandomChooserScreen: React.FC<RandomChooserScreenProps> = ({
                 isDrawing && { backgroundColor: '#94A3B8', shadowColor: 'transparent', elevation: 0 },
                 { flex: 1 }
               ]}
-              onPress={handleDraw}
+              onPress={remainingParticipants.length === 0 ? handleReset : handleDraw}
               activeOpacity={0.8}
               disabled={isDrawing}
             >
               <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={styles.drawButtonText}>
-                  {isDrawing ? 'מגריל...' : (chosenIds.length === N ? 'התחל סבב חדש והגרל' : 'הגרל תורן הבא')}
+                  {isDrawing 
+                    ? 'מגריל...' 
+                    : remainingParticipants.length === 0 
+                      ? 'התחל סבב חדש 🔄' 
+                      : 'הגרל תורן הבא'}
                 </Text>
                 <NavigationIcon name="dice" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
               </View>

@@ -235,33 +235,67 @@ export default function SplitExpensesScreen({
     const average = count > 0 ? total / count : 0;
 
     // Calculate balances (paid - average)
-    const balances = activeParticipants.map(p => ({
+    const activeBalances = activeParticipants.map(p => ({
       name: p.name,
       balance: (payments[p.id] || 0) - average
     }));
 
-    // Split into debtors and creditors
-    const debtors = balances
-      .filter(b => b.balance < -0.01)
-      .map(b => ({ ...b }))
-      .sort((a, b) => a.balance - b.balance); // most negative first
-
-    const creditors = balances
-      .filter(b => b.balance > 0.01)
-      .map(b => ({ ...b }))
-      .sort((a, b) => b.balance - a.balance); // most positive first
-
     const transactions: Transaction[] = [];
-    let d = 0;
-    let c = 0;
 
-    while (d < debtors.length && c < creditors.length) {
-      const debtor = debtors[d];
-      const creditor = creditors[c];
+    // Run max 100 times to prevent infinite loops from float rounding issues
+    for (let iter = 0; iter < 100; iter++) {
+      // 1. Look for an exact match first
+      let exactDebtorIdx = -1;
+      let exactCreditorIdx = -1;
+
+      for (let i = 0; i < activeBalances.length; i++) {
+        const dBal = activeBalances[i].balance;
+        if (dBal < -0.01) {
+          for (let j = 0; j < activeBalances.length; j++) {
+            const cBal = activeBalances[j].balance;
+            if (cBal > 0.01 && Math.abs(Math.abs(dBal) - cBal) < 0.05) {
+              exactDebtorIdx = i;
+              exactCreditorIdx = j;
+              break;
+            }
+          }
+        }
+        if (exactDebtorIdx !== -1) break;
+      }
+
+      let debtorIdx = -1;
+      let creditorIdx = -1;
+
+      if (exactDebtorIdx !== -1 && exactCreditorIdx !== -1) {
+        debtorIdx = exactDebtorIdx;
+        creditorIdx = exactCreditorIdx;
+      } else {
+        // 2. Fall back to largest debtor/creditor (Greedy Max-Min)
+        let minVal = 0;
+        let maxVal = 0;
+
+        for (let i = 0; i < activeBalances.length; i++) {
+          const bal = activeBalances[i].balance;
+          if (bal < -0.01 && (debtorIdx === -1 || bal < minVal)) {
+            debtorIdx = i;
+            minVal = bal;
+          }
+          if (bal > 0.01 && (creditorIdx === -1 || bal > maxVal)) {
+            creditorIdx = i;
+            maxVal = bal;
+          }
+        }
+      }
+
+      if (debtorIdx === -1 || creditorIdx === -1) {
+        break;
+      }
+
+      const debtor = activeBalances[debtorIdx];
+      const creditor = activeBalances[creditorIdx];
 
       const debtAmount = -debtor.balance;
       const creditAmount = creditor.balance;
-
       const transferAmount = Math.min(debtAmount, creditAmount);
 
       transactions.push({
@@ -272,9 +306,6 @@ export default function SplitExpensesScreen({
 
       debtor.balance += transferAmount;
       creditor.balance -= transferAmount;
-
-      if (Math.abs(debtor.balance) < 0.01) d++;
-      if (Math.abs(creditor.balance) < 0.01) c++;
     }
 
     return {
@@ -348,89 +379,91 @@ export default function SplitExpensesScreen({
           ) : (
             <>
               {/* Dropdown Selector Card */}
-              <View style={styles.card}>
-                <TouchableOpacity 
-                  style={styles.participantHeaderTrigger}
-                  onPress={() => {
-                    setSearchQuery('');
-                    setShowParticipantsModal(true);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.participantHeaderText}>
-                    עריכת משתתפים
-                  </Text>
-                  <Text style={styles.participantHeaderCount}>
-                    ({activeParticipants.length}/{listParticipants.length})
-                  </Text>
-                </TouchableOpacity>
-                
-                <Text style={styles.cardTitle}>בחר משתתף להזנת תשלום</Text>
-                
-                <TouchableOpacity 
-                  style={styles.dropdownTrigger}
-                  onPress={() => {
-                    setSearchQuery('');
-                    setShowDropdownModal(true);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.dropdownTriggerText, !selectedParticipantId && styles.placeholderText]}>
-                    {selectedParticipantId 
-                      ? listParticipants.find(p => p.id === selectedParticipantId)?.name 
-                      : 'בחר חבר מהקבוצה...'}
-                  </Text>
-                  <NavigationIcon name="chevron-down" size={22} color="#6366F1" />
-                </TouchableOpacity>
-
-                {/* Amount input form when user is selected */}
-                {selectedParticipantId && (
-                  <View style={styles.inputForm}>
-                    <Text style={styles.inputLabel}>
-                      כמה שילם {listParticipants.find(p => p.id === selectedParticipantId)?.name}?
+              {!showCalculation && (
+                <View style={styles.card}>
+                  <TouchableOpacity 
+                    style={styles.participantHeaderTrigger}
+                    onPress={() => {
+                      setSearchQuery('');
+                      setShowParticipantsModal(true);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.participantHeaderText}>
+                      עריכת משתתפים
                     </Text>
+                    <Text style={styles.participantHeaderCount}>
+                      ({activeParticipants.length}/{listParticipants.length})
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <Text style={styles.cardTitle}>בחר משתתף להזנת תשלום</Text>
+                  
+                  <TouchableOpacity 
+                    style={styles.dropdownTrigger}
+                    onPress={() => {
+                      setSearchQuery('');
+                      setShowDropdownModal(true);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.dropdownTriggerText, !selectedParticipantId && styles.placeholderText]}>
+                      {selectedParticipantId 
+                        ? listParticipants.find(p => p.id === selectedParticipantId)?.name 
+                        : 'בחר חבר מהקבוצה...'}
+                    </Text>
+                    <NavigationIcon name="chevron-down" size={22} color="#6366F1" />
+                  </TouchableOpacity>
 
-                    <View style={styles.currentAmountRow}>
-                      <Text style={styles.currentAmountLabel}>סכום מצטבר נוכחי:</Text>
-                      <Text style={styles.currentAmountValue}>₪{(payments[selectedParticipantId] || 0).toFixed(2)}</Text>
-                    </View>
-                    
-                    <View style={styles.inputRow}>
-                      <View style={styles.inputContainer}>
-                        <Text style={styles.currencySymbol}>₪</Text>
-                        <TextInput
-                          style={styles.textInput}
-                          keyboardType="numbers-and-punctuation"
-                          value={amountText}
-                          onChangeText={(text) => setAmountText(text.replace(/[^0-9.+]/g, ''))}
-                          onBlur={() => {
-                            const calculated = evaluateExpression(amountText);
-                            setAmountText(calculated > 0 ? calculated.toString() : '');
-                          }}
-                          placeholder="0"
-                          placeholderTextColor="#94A3B8"
-                          autoFocus
-                          selectTextOnFocus
-                        />
+                  {/* Amount input form when user is selected */}
+                  {selectedParticipantId && (
+                    <View style={styles.inputForm}>
+                      <Text style={styles.inputLabel}>
+                        כמה שילם {listParticipants.find(p => p.id === selectedParticipantId)?.name}?
+                      </Text>
+
+                      <View style={styles.currentAmountRow}>
+                        <Text style={styles.currentAmountLabel}>סכום מצטבר נוכחי:</Text>
+                        <Text style={styles.currentAmountValue}>₪{(payments[selectedParticipantId] || 0).toFixed(2)}</Text>
                       </View>
                       
-                      <View style={styles.actionButtonsContainer}>
-                        {(payments[selectedParticipantId] || 0) > 0 && (
-                          <TouchableOpacity style={[styles.actionBtn, styles.minusBtn]} onPress={handleSubtractPayment}>
-                            <Text style={styles.actionBtnText}>-</Text>
+                      <View style={styles.inputRow}>
+                        <View style={styles.inputContainer}>
+                          <Text style={styles.currencySymbol}>₪</Text>
+                          <TextInput
+                            style={styles.textInput}
+                            keyboardType="numbers-and-punctuation"
+                            value={amountText}
+                            onChangeText={(text) => setAmountText(text.replace(/[^0-9.+]/g, ''))}
+                            onBlur={() => {
+                              const calculated = evaluateExpression(amountText);
+                              setAmountText(calculated > 0 ? calculated.toString() : '');
+                            }}
+                            placeholder="0"
+                            placeholderTextColor="#94A3B8"
+                            autoFocus
+                            selectTextOnFocus
+                          />
+                        </View>
+                        
+                        <View style={styles.actionButtonsContainer}>
+                          {(payments[selectedParticipantId] || 0) > 0 && (
+                            <TouchableOpacity style={[styles.actionBtn, styles.minusBtn]} onPress={handleSubtractPayment}>
+                              <Text style={styles.actionBtnText}>-</Text>
+                            </TouchableOpacity>
+                          )}
+                          <TouchableOpacity style={[styles.actionBtn, styles.plusBtn]} onPress={handleAddPayment}>
+                            <Text style={styles.actionBtnText}>+</Text>
                           </TouchableOpacity>
-                        )}
-                        <TouchableOpacity style={[styles.actionBtn, styles.plusBtn]} onPress={handleAddPayment}>
-                          <Text style={styles.actionBtnText}>+</Text>
-                        </TouchableOpacity>
+                        </View>
                       </View>
                     </View>
-                  </View>
-                )}
-              </View>
+                  )}
+                </View>
+              )}
 
               {/* Entered Expenses Section */}
-              {enteredExpenses.length > 0 && (
+              {!showCalculation && enteredExpenses.length > 0 && (
                 <View style={styles.card}>
                   <View style={styles.cardHeaderRow}>
                     <Text style={styles.cardTitle}>הוצאות שהוזנו בפועל</Text>
@@ -462,25 +495,37 @@ export default function SplitExpensesScreen({
               )}
 
               {/* Show Calculations Button */}
-              <TouchableOpacity 
-                style={styles.calculateButton} 
-                onPress={() => {
-                  if (activeParticipants.length < 2) {
-                    Alert.alert('שגיאה', 'יש צורך בלפחות 2 משתתפים פעילים בחישוב כדי לבצע חלוקה.');
-                    return;
-                  }
-                  setShowCalculation(true);
-                }}
-                activeOpacity={0.8}
-              >
-                <NavigationIcon name="coins" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
-                <Text style={styles.calculateButtonText}>הצגת חלוקת התשלום</Text>
-              </TouchableOpacity>
+              {!showCalculation && (
+                <TouchableOpacity 
+                  style={styles.calculateButton} 
+                  onPress={() => {
+                    if (activeParticipants.length < 2) {
+                      Alert.alert('שגיאה', 'יש צורך בלפחות 2 משתתפים פעילים בחישוב כדי לבצע חלוקה.');
+                      return;
+                    }
+                    setShowCalculation(true);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <NavigationIcon name="coins" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
+                  <Text style={styles.calculateButtonText}>הצגת חלוקת התשלום</Text>
+                </TouchableOpacity>
+              )}
 
               {/* Result card */}
               {showCalculation && activeParticipants.length >= 2 && (
                 <View style={styles.resultsCard}>
-                  <Text style={styles.resultsTitle}>חלוקת התשלום 💰</Text>
+                  <View style={{ flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <Text style={[styles.resultsTitle, { marginBottom: 0, textAlign: 'right' }]}>חלוקת התשלום 💰</Text>
+                    <TouchableOpacity 
+                      onPress={() => setShowCalculation(false)}
+                      activeOpacity={0.7}
+                      style={styles.resetBtnContainer}
+                    >
+                      <NavigationIcon name="create-outline" size={16} color="#8B5CF6" style={{ marginLeft: 4 }} />
+                      <Text style={styles.resetTextLinkText}>ערוך תשלומים</Text>
+                    </TouchableOpacity>
+                  </View>
                   
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>סה"כ הוצאות:</Text>

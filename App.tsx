@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Alert, AppState, ActivityIndicator, StyleSheet, View, Text, TouchableOpacity, ScrollView, Animated, TextInput, Modal, Dimensions, Platform, BackHandler, ToastAndroid } from 'react-native';
+import { Alert, AppState, ActivityIndicator, StyleSheet, View, Text, TouchableOpacity, ScrollView, Animated, TextInput, Modal, Dimensions, Platform, BackHandler, ToastAndroid, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -2313,7 +2313,10 @@ export default function App() {
         transparent={true}
         onRequestClose={() => setIsSubscriptionModalOpen(false)}
       >
-        <View style={styles.subModalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.subModalOverlay}
+        >
           <View style={styles.subModalContent}>
             {/* Close Icon Button */}
             <TouchableOpacity
@@ -2329,6 +2332,41 @@ export default function App() {
               <Ionicons name="star" size={40} color="#FBBF24" />
               <Text style={styles.subModalTitle}>מנוי Premium ⭐️</Text>
             </View>
+
+            {/* Promo Code Input Section */}
+            {userTier !== 'guest' ? (
+              <View style={styles.promoCodeContainer}>
+                <Text style={styles.promoCodeTitle}>גרסת הרצה, הכנס קוד להפעלה:</Text>
+                <View style={styles.promoCodeInputRow}>
+                  <TouchableOpacity
+                    style={[styles.promoCodeApplyBtn, isApplyingPromoCode && styles.disabledButton]}
+                    onPress={handleApplyPromoCode}
+                    disabled={isApplyingPromoCode}
+                  >
+                    {isApplyingPromoCode ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <Text style={styles.promoCodeApplyBtnText}>הפעל קוד</Text>
+                    )}
+                  </TouchableOpacity>
+                  <TextInput
+                    style={styles.promoCodeInput}
+                    value={promoCodeInput}
+                    onChangeText={setPromoCodeInput}
+                    placeholder="הזן קוד הטבה..."
+                    placeholderTextColor="#94A3B8"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+              </View>
+            ) : (
+              <View style={styles.promoCodeContainer}>
+                <Text style={[styles.promoCodeTitle, { textAlign: 'center', color: '#EF4444' }]}>
+                  גרסת הרצה, יש להתחבר להפעלת מנוי
+                </Text>
+              </View>
+            )}
 
             {/* Description */}
             <Text style={styles.subModalDesc}>
@@ -2379,43 +2417,8 @@ export default function App() {
               </TouchableOpacity>
             </View>
 
-            {/* Promo Code Input Section */}
-            {userTier !== 'guest' ? (
-              <View style={styles.promoCodeContainer}>
-                <Text style={styles.promoCodeTitle}>גרסת הרצה, הכנס קוד להפעלה:</Text>
-                <View style={styles.promoCodeInputRow}>
-                  <TouchableOpacity
-                    style={[styles.promoCodeApplyBtn, isApplyingPromoCode && styles.disabledButton]}
-                    onPress={handleApplyPromoCode}
-                    disabled={isApplyingPromoCode}
-                  >
-                    {isApplyingPromoCode ? (
-                      <ActivityIndicator color="#FFFFFF" size="small" />
-                    ) : (
-                      <Text style={styles.promoCodeApplyBtnText}>הפעל קוד</Text>
-                    )}
-                  </TouchableOpacity>
-                  <TextInput
-                    style={styles.promoCodeInput}
-                    value={promoCodeInput}
-                    onChangeText={setPromoCodeInput}
-                    placeholder="הזן קוד הטבה..."
-                    placeholderTextColor="#94A3B8"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                </View>
-              </View>
-            ) : (
-              <View style={styles.promoCodeContainer}>
-                <Text style={[styles.promoCodeTitle, { textAlign: 'center', color: '#EF4444' }]}>
-                  גרסת הרצה, יש להתחבר להפעלת מנוי
-                </Text>
-              </View>
-            )}
-
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Simulated Payment Page Modal */}
@@ -3303,6 +3306,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
     paddingTop: 8,
+    marginBottom: 12,
   },
   promoCodeTitle: {
     fontSize: 13,
