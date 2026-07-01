@@ -36,6 +36,7 @@ import RandomOrderScreen from './src/screens/RandomOrderScreen';
 import SplitExpensesScreen from './src/screens/SplitExpensesScreen';
 import TaskAllocationScreen from './src/screens/TaskAllocationScreen';
 import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
+import GroupAllocationScreen from './src/screens/GroupAllocationScreen';
 import { SimulatedRewardedAd } from './src/utils/ads';
 import { auth, db } from './src/config/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -101,7 +102,7 @@ Notifications.setNotificationHandler({
 });
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<'Home' | 'ListManagement' | 'Auth' | 'ActiveQueue' | 'SecretDraw' | 'RandomChooser' | 'Groups' | 'Gifts' | 'RandomOrder' | 'SplitExpenses' | 'TaskAllocation' | 'AdminDashboard'>('Home');
+  const [currentScreen, setCurrentScreen] = useState<'Home' | 'ListManagement' | 'Auth' | 'ActiveQueue' | 'SecretDraw' | 'RandomChooser' | 'Groups' | 'Gifts' | 'RandomOrder' | 'SplitExpenses' | 'TaskAllocation' | 'AdminDashboard' | 'GroupAllocation'>('Home');
   const [previousScreen, setPreviousScreen] = useState<'Home' | 'ListManagement' | 'ActiveQueue'>('Home');
   const [userTier, setUserTier] = useState<UserTier>('guest');
   const [isInitialSync, setIsInitialSync] = useState(false);
@@ -1846,6 +1847,18 @@ export default function App() {
       );
     }
 
+    if (currentScreen === 'GroupAllocation') {
+      return (
+        <GroupAllocationScreen
+          activeList={activeList}
+          onBack={() => setCurrentScreen('Home')}
+          absentParticipantIds={absentParticipantIds}
+          setAbsentParticipantIds={setAbsentParticipantIds}
+          userTier={userTier}
+        />
+      );
+    }
+
     return (
       <HomeScreen
         userTier={userTier}
@@ -1861,6 +1874,7 @@ export default function App() {
         onNavigateToSecretDraw={() => setCurrentScreen('SecretDraw')}
         onNavigateToRandomChooser={() => handleNavigateWithPremiumCheck('RandomChooser')}
         onNavigateToGroups={() => setCurrentScreen('Groups')}
+        onNavigateToGroupAllocation={() => setCurrentScreen('GroupAllocation')}
         onNavigateToGifts={() => setCurrentScreen('Gifts')}
         onNavigateToRandomOrder={() => setCurrentScreen('RandomOrder')}
         onNavigateToSplitExpenses={() => handleNavigateWithPremiumCheck('SplitExpenses')}

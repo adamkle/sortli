@@ -192,6 +192,9 @@ const NavigationIcon: React.FC<NavigationIconProps> = ({ name, size = 24, color 
     case 'crown':
       path = 'M5 16h14a1 1 0 001-.76l2-9a1 1 0 00-1.56-1l-4.24 3.18L12.7 4.1a1 1 0 00-1.4 0L7.8 8.42 3.56 5.24a1 1 0 00-1.56 1l2 9a1 1 0 001 .76zM19 18H5a1 1 0 000 2h14a1 1 0 000-2z';
       break;
+    case 'creation':
+      path = 'M12 2l2.3 7.5L22 12l-7.7 2.5L12 22l-2.3-7.5L2 12l7.7-2.5L12 2zm7 2l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2zm-13 13l.6 1.8 1.8.6-1.8.6-.6 1.8-.6-1.8-1.8-.6 1.8-.6.6-1.8z';
+      break;
     default:
       path = '';
   }

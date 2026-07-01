@@ -41,6 +41,7 @@ interface HomeScreenProps {
   onNavigateToSecretDraw: () => void;
   onNavigateToRandomChooser: () => void;
   onNavigateToGroups: () => void;
+  onNavigateToGroupAllocation: () => void;
   onNavigateToGifts: () => void;
   onNavigateToRandomOrder: () => void;
   onNavigateToSplitExpenses: () => void;
@@ -63,6 +64,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigateToSecretDraw,
   onNavigateToRandomChooser,
   onNavigateToGroups,
+  onNavigateToGroupAllocation,
   onNavigateToGifts,
   onNavigateToRandomOrder,
   onNavigateToSplitExpenses,
@@ -145,6 +147,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       lockedFor: ['guest'],
     },
     {
+      key: 'groupAllocation',
+      title: 'חלוקה לפי מובילים',
+      subtitle: '(שיוך שווה של חברים לראשי קבוצה)',
+      iconName: 'creation',
+      backgroundColor: '#EAB308', // Yellow
+      lockedFor: ['guest'],
+    },
+    {
       key: 'gifts',
       title: 'חלוקה וקבלה הדדית',
       subtitle: '(משלוחי מנות)',
@@ -210,6 +220,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         return;
       }
       onNavigateToGroups();
+    } else if (item.key === 'groupAllocation') {
+      if (!activeList) {
+         Alert.alert('רשימה לא נבחרה', 'אנא בחר רשימה פעילה מהתפריט הצדי תחילה.', [{ text: 'אישור' }]);
+        return;
+      }
+      onNavigateToGroupAllocation();
     } else if (item.key === 'gifts') {
       if (!activeList) {
          Alert.alert('רשימה לא נבחרה', 'אנא בחר רשימה פעילה מהתפריט הצדי תחילה.', [{ text: 'אישור' }]);
